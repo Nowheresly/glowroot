@@ -94,12 +94,12 @@
 
   <properties>
     <!-- grpc 1.15.0+ requires Java 7+ -->
-    <grpc.version>1.14.0</grpc.version>
+    <grpc.version>1.21.1</grpc.version>
     <!-- protobuf 3.6.0+ requires Java 7+ -->
-    <protobuf.version>3.5.1</protobuf.version>
-    <protoc.version>3.5.1</protoc.version>
+    <protobuf.version>3.7.1</protobuf.version>
+    <protoc.version>3.7.1</protoc.version>
     <!-- need to stick to netty version that is used by grpc version above -->
-    <netty.version>4.1.27.Final</netty.version>
+    <netty.version>4.1.34.Final</netty.version>
     <logback.version>1.2.3</logback.version>
     <slf4j.version>1.7.30</slf4j.version>
     <immutables.version>2.8.3</immutables.version>
@@ -199,7 +199,13 @@
       <dependency>
         <groupId>com.google.guava</groupId>
         <artifactId>guava</artifactId>
-        <version>20.0</version>
+        <version>26.0-android</version>
+        <exclusions>
+          <exclusion>
+            <groupId>org.codehaus.mojo</groupId>
+            <artifactId>animal-sniffer-annotations</artifactId>
+          </exclusion>
+        </exclusions>
       </dependency>
       <dependency>
         <groupId>com.fasterxml.jackson.core</groupId>
