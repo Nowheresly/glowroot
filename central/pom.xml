@@ -65,9 +65,9 @@
       <version>2.0.12.Final</version>
     </dependency>
     <dependency>
-      <groupId>com.datastax.cassandra</groupId>
-      <artifactId>cassandra-driver-core</artifactId>
-      <version>3.7.2</version>
+      <groupId>com.datastax.oss</groupId>
+      <artifactId>java-driver-core</artifactId>
+      <version>4.0.1</version>
     </dependency>
     <!-- Upgrading Infinispan beyond 9.4.x requires that a marshaller be chosen and configured. Do not upgrade until this is done. 
       See https://stackoverflow.com/questions/58815818/infinispan-10-0-1-final-no-marshaller-registered-for-java-type-java-util-uuid -->

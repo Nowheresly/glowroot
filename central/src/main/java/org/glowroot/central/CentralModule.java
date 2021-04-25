@@ -38,18 +38,14 @@ import java.util.regex.Pattern;
 import javax.servlet.ServletContext;
 
 import ch.qos.logback.classic.LoggerContext;
-import com.datastax.driver.core.Cluster;
-import com.datastax.driver.core.ConsistencyLevel;
-import com.datastax.driver.core.HostDistance;
-import com.datastax.driver.core.KeyspaceMetadata;
-import com.datastax.driver.core.PoolingOptions;
-import com.datastax.driver.core.QueryOptions;
-import com.datastax.driver.core.ResultSet;
-import com.datastax.driver.core.Row;
-import com.datastax.driver.core.TimestampGenerator;
-import com.datastax.driver.core.exceptions.NoHostAvailableException;
-import com.datastax.driver.core.policies.ConstantReconnectionPolicy;
-import com.datastax.driver.core.policies.Policies;
+import com.datastax.oss.driver.api.core.ConsistencyLevel;
+import com.datastax.oss.driver.api.core.CqlSession;
+import com.datastax.oss.driver.api.core.CqlSessionBuilder;
+import com.datastax.oss.driver.api.core.cql.ResultSet;
+import com.datastax.oss.driver.api.core.cql.Row;
+import com.datastax.oss.driver.api.core.metadata.schema.KeyspaceMetadata;
+import com.datastax.oss.driver.api.core.time.TimestampGenerator;
+import com.datastax.oss.driver.internal.core.time.ServerSideTimestampGenerator;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Joiner;
 import com.google.common.base.Splitter;
@@ -116,8 +112,7 @@ public class CentralModule {
 
     private final boolean servlet;
     private final ClusterManager clusterManager;
-    private final Cluster cluster;
-    private final Session session;
+    private final CqlSession session;
     private final ExecutorService repoAsyncExecutor;
     private final CentralRepoModule repos;
     private final AlertingService alertingService;
@@ -146,8 +141,7 @@ public class CentralModule {
             throws Exception {
         servlet = servletContext != null;
         ClusterManager clusterManager = null;
-        Cluster cluster = null;
-        Session session = null;
+        CqlSession session = null;
         ExecutorService repoAsyncExecutor = null;
         CentralRepoModule repos = null;
         AlertingService alertingService = null;
@@ -184,7 +178,6 @@ public class CentralModule {
             clusterManager = ClusterManager.create(directories.getConfDir(),
                     centralConfig.jgroupsProperties());
             session = connect(centralConfig);
-            cluster = session.getCluster();
 
             SchemaUpgrade schemaUpgrade = new SchemaUpgrade(session, clock, servlet);
             Integer initialSchemaVersion = schemaUpgrade.getInitialSchemaVersion();
@@ -335,16 +328,12 @@ public class CentralModule {
             if (session != null) {
                 session.close();
             }
-            if (cluster != null) {
-                cluster.close();
-            }
             if (clusterManager != null) {
                 clusterManager.close();
             }
             throw t;
         }
         this.clusterManager = clusterManager;
-        this.cluster = cluster;
         this.session = session;
         this.repoAsyncExecutor = repoAsyncExecutor;
         this.repos = repos;
@@ -441,13 +430,11 @@ public class CentralModule {
         startupLogger.info("Java version: {}", StandardSystemProperty.JAVA_VERSION.value());
 
         CentralConfiguration centralConfig = getCentralConfiguration(directories.getConfDir());
-        Session session = null;
-        Cluster cluster = null;
+        CqlSession session = null;
         ExecutorService repoAsyncExecutor = null;
         CentralRepoModule repos = null;
         try {
             session = connect(centralConfig);
-            cluster = session.getCluster();
             SchemaUpgrade schemaUpgrade = new SchemaUpgrade(session, Clock.systemClock(), false);
             if (schemaUpgrade.getInitialSchemaVersion() != null) {
                 startupLogger.error("glowroot central schema already exists, exiting");
@@ -468,9 +455,6 @@ public class CentralModule {
             }
             if (session != null) {
                 session.close();
-            }
-            if (cluster != null) {
-                cluster.close();
             }
         }
         startupLogger.info("glowroot central schema created");
@@ -561,14 +545,12 @@ public class CentralModule {
         startupLogger.info("Java version: {}", StandardSystemProperty.JAVA_VERSION.value());
 
         CentralConfiguration centralConfig = getCentralConfiguration(directories.getConfDir());
-        Session session = null;
-        Cluster cluster = null;
+        CqlSession session = null;
         ExecutorService repoAsyncExecutor = null;
         CentralRepoModule repos = null;
         boolean success;
         try {
             session = connect(centralConfig);
-            cluster = session.getCluster();
             SchemaUpgrade schemaUpgrade = new SchemaUpgrade(session, Clock.systemClock(), false);
             Integer initialSchemaVersion = schemaUpgrade.getInitialSchemaVersion();
             if (initialSchemaVersion == null) {
@@ -599,9 +581,6 @@ public class CentralModule {
             }
             if (session != null) {
                 session.close();
-            }
-            if (cluster != null) {
-                cluster.close();
             }
         }
         if (success) {
@@ -824,14 +803,14 @@ public class CentralModule {
     }
 
     @RequiresNonNull("startupLogger")
-    private static Session connect(CentralConfiguration centralConfig) throws Exception {
-        Session session = null;
+    private static CqlSession connect(CentralConfiguration centralConfig) throws Exception {
+        CqlSession session = null;
         // instantiate the default timestamp generator (AtomicMonotonicTimestampGenerator) only once
         // since it calls com.datastax.driver.core.ClockFactory.newInstance() via super class
         // (AbstractMonotonicTimestampGenerator) which logs whether using native clock or not,
         // which is useful, but annoying when waiting for cassandra to start up and the message gets
         // logged over and over and over
-        TimestampGenerator defaultTimestampGenerator = Policies.defaultTimestampGenerator();
+        TimestampGenerator defaultTimestampGenerator = new ServerSideTimestampGenerator();
 
         RateLimitedLogger waitingForCassandraLogger = new RateLimitedLogger(CentralModule.class);
         RateLimitedLogger waitingForCassandraReplicasLogger =
@@ -862,7 +841,7 @@ public class CentralModule {
                 }
                 String cassandraVersion = verifyCassandraVersion(session);
                 KeyspaceMetadata keyspaceMetadata =
-                        checkNotNull(session.getCluster().getMetadata().getKeyspace(keyspace));
+                        checkNotNull(session.getMetadata().getKeyspace(keyspace).orElse(null));
                 String replicationFactor =
                         keyspaceMetadata.getReplication().get("replication_factor");
                 if (replicationFactor == null) {
@@ -889,22 +868,22 @@ public class CentralModule {
             } catch (RuntimeException e) {
                 // clean up
                 if (session != null) {
-                    session.getCluster().close();
+                    session.close();
                 }
                 throw e;
             }
         }
         // clean up
         if (session != null) {
-            session.getCluster().close();
+            session.close();
         }
         checkNotNull(lastException);
         throw lastException;
     }
 
-    private static Cluster createCluster(CentralConfiguration centralConfig,
-            TimestampGenerator defaultTimestampGenerator) {
-        Cluster.Builder builder = Cluster.builder()
+    private static CqlSessionBuilder createCluster(CentralConfiguration centralConfig,
+                                                   TimestampGenerator defaultTimestampGenerator) {
+        CqlSessionBuilder builder = CqlSession.builder()
                 .addContactPoints(
                         centralConfig.cassandraContactPoint().toArray(new String[0]))
                 .withPort(centralConfig.cassandraPort())
@@ -934,10 +913,10 @@ public class CentralModule {
         if (centralConfig.cassandraSSL()) {
         	builder.withSSL();
         }
-        return builder.build();
+        return builder;
     }
 
-    private static String verifyCassandraVersion(Session session) throws Exception {
+    private static String verifyCassandraVersion(CqlSession session) throws Exception {
         ResultSet results =
                 session.read("select release_version from system.local where key = 'local'");
         Row row = checkNotNull(results.one());
