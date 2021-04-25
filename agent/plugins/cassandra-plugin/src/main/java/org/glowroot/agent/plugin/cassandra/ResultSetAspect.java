@@ -30,7 +30,7 @@ import org.glowroot.agent.plugin.api.weaving.Pointcut;
 public class ResultSetAspect {
 
     // the field and method names are verbose since they will be mixed in to existing classes
-    @Mixin("com.datastax.driver.core.ResultSet")
+    @Mixin("com.datastax.oss.driver.api.core.cql.ResultSet")
     public static class ResultSetImpl implements ResultSetMixin {
 
         // this may be async or non-async query entry
@@ -60,7 +60,9 @@ public class ResultSetAspect {
         void glowroot$setQueryEntry(@Nullable QueryEntry queryEntry);
     }
 
-    @Pointcut(className = "com.datastax.driver.core.ResultSet", methodName = "one",
+    @Pointcut(className = "com.datastax.oss.driver.api.core.PagingIterable"
+            + "|com.datastax.oss.driver.api.core.cql.ResultSet",
+            methodName = "one",
             methodParameterTypes = {})
     public static class OneAdvice {
 
@@ -92,10 +94,10 @@ public class ResultSetAspect {
         }
     }
 
-    @Pointcut(className = "java.lang.Iterable",
-            subTypeRestriction = "com.datastax.driver.core.ResultSet",
-            methodName = "iterator", methodParameterTypes = {})
-    public static class IteratorAdvice {
+    @Pointcut(className = "java.util.Spliterator",
+            subTypeRestriction = "com.datastax.oss.driver.api.core.PagingIterable",
+            methodName = "spliterator", methodParameterTypes = {})
+    public static class SpliteratorAdvice {
 
         @OnReturn
         public static void onReturn(@BindReceiver ResultSetMixin resultSet) {
@@ -108,11 +110,11 @@ public class ResultSetAspect {
         }
     }
 
-    @Pointcut(className = "com.datastax.driver.core.PagingIterable"
-            + "|com.datastax.driver.core.ResultSet",
-            subTypeRestriction = "com.datastax.driver.core.ResultSet",
-            methodName = "isExhausted", methodParameterTypes = {})
-    public static class IsExhaustedAdvice {
+    @Pointcut(className = "com.datastax.oss.driver.api.core.PagingIterable"
+            + "|com.datastax.oss.driver.api.core.cql.ResultSet",
+            subTypeRestriction = "com.datastax.oss.driver.api.core.cql.ResultSet",
+            methodName = "isFullyFetched", methodParameterTypes = {})
+    public static class IsFullyFetchedAdvice {
 
         @OnBefore
         public static @Nullable Timer onBefore(@BindReceiver ResultSetMixin resultSet) {

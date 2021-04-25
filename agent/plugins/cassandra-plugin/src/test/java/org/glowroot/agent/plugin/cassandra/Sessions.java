@@ -15,33 +15,29 @@
  */
 package org.glowroot.agent.plugin.cassandra;
 
-import java.lang.reflect.Method;
+import java.net.InetSocketAddress;
+import java.time.Duration;
 
-import com.datastax.driver.core.Cluster;
-import com.datastax.driver.core.QueryOptions;
-import com.datastax.driver.core.Session;
-import com.datastax.driver.core.SocketOptions;
-import com.datastax.driver.core.exceptions.NoHostAvailableException;
+import com.datastax.oss.driver.api.core.config.DefaultDriverOption;
+import com.datastax.oss.driver.api.core.config.DriverConfigLoader;
+import com.datastax.oss.driver.api.core.CqlSession;
 
 class Sessions {
 
-    static Session createSession() throws Exception {
-        Cluster cluster = Cluster.builder().addContactPoint("127.0.0.1")
+    static CqlSession createSession() throws Exception {
+        CqlSession session = CqlSession.builder().addContactPoint(new InetSocketAddress("127.0.0.1", 9042))
+                .withLocalDatacenter("datacenter1")
                 // long read timeout is sometimes needed on slow travis ci machines
-                .withSocketOptions(new SocketOptions().setReadTimeoutMillis(30000))
-                .withQueryOptions(getQueryOptions())
+                .withConfigLoader(DriverConfigLoader.programmaticBuilder()
+                        .withDuration(DefaultDriverOption.REQUEST_TIMEOUT, Duration.ofMillis(30000))
+                        .withBoolean(DefaultDriverOption.REQUEST_DEFAULT_IDEMPOTENCE, true)
+                        .build())
                 .build();
-        Session session = cluster.connect();
         session.execute("CREATE KEYSPACE IF NOT EXISTS test WITH REPLICATION ="
                 + " { 'class' : 'SimpleStrategy', 'replication_factor' : 1 }");
         session.execute("CREATE TABLE IF NOT EXISTS test.users"
                 + " (id int PRIMARY KEY, fname text, lname text)");
-        try {
-            session.execute("TRUNCATE test.users");
-        } catch (NoHostAvailableException e) {
-            // sometimes slow, so give it a second chance
-            session.execute("TRUNCATE test.users");
-        }
+        session.execute("TRUNCATE test.users");
         for (int i = 0; i < 10; i++) {
             session.execute("INSERT INTO test.users (id, fname, lname) VALUES (" + i + ", 'f" + i
                     + "', 'l" + i + "')");
@@ -49,24 +45,7 @@ class Sessions {
         return session;
     }
 
-    static void closeSession(Session session) {
-        Cluster cluster = session.getCluster();
+    static void closeSession(CqlSession session) {
         session.close();
-        cluster.close();
-    }
-
-    // if possible, let driver know that only idempotent queries are used so it will retry on
-    // timeout
-    private static QueryOptions getQueryOptions() {
-        QueryOptions queryOptions = new QueryOptions();
-        Method setDefaultIdempotenceMethod;
-        try {
-            setDefaultIdempotenceMethod =
-                    QueryOptions.class.getMethod("setDefaultIdempotence", boolean.class);
-            setDefaultIdempotenceMethod.invoke(queryOptions, true);
-        } catch (Exception e) {
-            // early version of driver
-        }
-        return queryOptions;
     }
 }

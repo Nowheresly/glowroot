@@ -62,40 +62,40 @@ public class SessionAspect {
         });
     }
 
-    @Shim("com.datastax.driver.core.Statement")
+    @Shim("com.datastax.oss.driver.api.core.cql.Statement")
     public interface Statement {}
 
-    @Shim("com.datastax.driver.core.RegularStatement")
-    public interface RegularStatement extends Statement {
+    @Shim("com.datastax.oss.driver.api.core.cql.SimpleStatement")
+    public interface SimpleStatement extends Statement {
 
         @Nullable
         String getQueryString();
     }
 
-    @Shim("com.datastax.driver.core.BoundStatement")
+    @Shim("com.datastax.oss.driver.api.core.cql.BoundStatement")
     public interface BoundStatement extends Statement {
 
-        @Shim("com.datastax.driver.core.PreparedStatement preparedStatement()")
+        @Shim("com.datastax.oss.driver.api.core.cql.PreparedStatement preparedStatement()")
         @Nullable
         PreparedStatement glowroot$preparedStatement();
     }
 
-    @Shim("com.datastax.driver.core.BatchStatement")
+    @Shim("com.datastax.oss.driver.api.core.cql.BatchStatement")
     public interface BatchStatement extends Statement {
 
         @Nullable
         Collection<Statement> getStatements();
     }
 
-    @Shim("com.datastax.driver.core.PreparedStatement")
+    @Shim("com.datastax.oss.driver.api.core.cql.PreparedStatement")
     public interface PreparedStatement {
 
         @Nullable
         String getQueryString();
     }
 
-    @Pointcut(className = "com.datastax.driver.core.Session", methodName = "execute",
-            methodParameterTypes = {"com.datastax.driver.core.Statement"},
+    @Pointcut(className = "com.datastax.oss.driver.api.core.cql.CqlSession", methodName = "execute",
+            methodParameterTypes = {"com.datastax.oss.driver.api.core.cql.Statement"},
             nestingGroup = "cassandra", timerName = "cassandra query",
             suppressionKey = "wait-on-future")
     public static class ExecuteAdvice {
@@ -129,7 +129,7 @@ public class SessionAspect {
         }
     }
 
-    @Pointcut(className = "com.datastax.driver.core.Session", methodName = "prepare",
+    @Pointcut(className = "com.datastax.oss.driver.api.core.cql.CqlSession", methodName = "prepare",
             methodParameterTypes = {"*"}, timerName = "cql prepare",
             suppressionKey = "wait-on-future")
     public static class PrepareAdvice {
@@ -144,8 +144,8 @@ public class SessionAspect {
         }
     }
 
-    @Pointcut(className = "com.datastax.driver.core.Session", methodName = "executeAsync",
-            methodParameterTypes = {"com.datastax.driver.core.Statement"},
+    @Pointcut(className = "com.datastax.oss.driver.api.core.cql.CqlSession", methodName = "executeAsync",
+            methodParameterTypes = {"com.datastax.oss.driver.api.core.cql.Statement"},
             nestingGroup = "cassandra", timerName = "cassandra query")
     public static class ExecuteAsyncAdvice {
         private static final TimerName timerName = Agent.getTimerName(ExecuteAsyncAdvice.class);
@@ -203,8 +203,8 @@ public class SessionAspect {
         String queryText;
         if (arg instanceof String) {
             queryText = (String) arg;
-        } else if (arg instanceof RegularStatement) {
-            queryText = nullToEmpty(((RegularStatement) arg).getQueryString());
+        } else if (arg instanceof SimpleStatement) {
+            queryText = nullToEmpty(((SimpleStatement) arg).getQueryString());
         } else if (arg instanceof BoundStatement) {
             PreparedStatement preparedStatement =
                     ((BoundStatement) arg).glowroot$preparedStatement();
@@ -265,8 +265,8 @@ public class SessionAspect {
     }
 
     private static String getQuery(Statement statement) {
-        if (statement instanceof RegularStatement) {
-            String qs = ((RegularStatement) statement).getQueryString();
+        if (statement instanceof SimpleStatement) {
+            String qs = ((SimpleStatement) statement).getQueryString();
             return nullToEmpty(qs);
         } else if (statement instanceof BoundStatement) {
             PreparedStatement preparedStatement =

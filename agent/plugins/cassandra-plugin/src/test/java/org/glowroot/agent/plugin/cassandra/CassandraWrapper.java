@@ -20,13 +20,16 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.net.InetSocketAddress;
 import java.net.URL;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-import com.datastax.driver.core.Cluster;
-import com.datastax.driver.core.exceptions.NoHostAvailableException;
+import com.datastax.oss.driver.api.core.AllNodesFailedException;
+import com.datastax.oss.driver.api.core.CqlSession;
+import com.datastax.oss.driver.api.core.DriverTimeoutException;
+import com.datastax.oss.driver.api.core.connection.ConnectionInitException;
 import com.google.common.base.StandardSystemProperty;
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
@@ -173,14 +176,10 @@ class CassandraWrapper {
 
     private static void waitForCassandra() throws InterruptedException {
         while (true) {
-            Cluster cluster = Cluster.builder().addContactPoint("127.0.0.1").build();
-            try {
-                cluster.connect();
-                cluster.close();
+            try(CqlSession session = CqlSession.builder().addContactPoint(new InetSocketAddress(9042)).withLocalDatacenter("datacenter1").build()) {
                 return;
-            } catch (NoHostAvailableException e) {
-                cluster.close();
-                SECONDS.sleep(1);
+            } catch (ConnectionInitException | DriverTimeoutException | AllNodesFailedException cie) {
+                //cie.printStackTrace();
             }
         }
     }

@@ -18,15 +18,10 @@ package org.glowroot.agent.plugin.cassandra;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
+import java.util.concurrent.CompletionStage;
 
-import com.datastax.driver.core.BatchStatement;
-import com.datastax.driver.core.BoundStatement;
-import com.datastax.driver.core.PreparedStatement;
-import com.datastax.driver.core.ResultSet;
-import com.datastax.driver.core.ResultSetFuture;
-import com.datastax.driver.core.Row;
-import com.datastax.driver.core.Session;
-import com.datastax.driver.core.SimpleStatement;
+import com.datastax.oss.driver.api.core.cql.*;
+import com.datastax.oss.driver.api.core.CqlSession;
 import com.google.common.collect.Lists;
 import org.junit.After;
 import org.junit.AfterClass;
@@ -39,6 +34,7 @@ import org.glowroot.agent.it.harness.TransactionMarker;
 import org.glowroot.wire.api.model.AggregateOuterClass.Aggregate;
 import org.glowroot.wire.api.model.TraceOuterClass.Trace;
 
+import static com.datastax.oss.driver.api.core.cql.DefaultBatchType.LOGGED;
 import static org.assertj.core.api.Assertions.assertThat;
 
 public class CassandraAsyncIT {
@@ -297,7 +293,7 @@ public class CassandraAsyncIT {
 
     public static class ExecuteAsyncStatement implements AppUnderTest, TransactionMarker {
 
-        private Session session;
+        private CqlSession session;
 
         @Override
         public void executeApp() throws Exception {
@@ -308,9 +304,9 @@ public class CassandraAsyncIT {
 
         @Override
         public void transactionMarker() throws Exception {
-            ResultSetFuture future = session.executeAsync("SELECT * FROM test.users");
-            ResultSet results = future.get();
-            for (Row row : results) {
+            CompletionStage<AsyncResultSet> future = session.executeAsync("SELECT * FROM test.users");
+            AsyncResultSet results = future.toCompletableFuture().get();
+            for (Row row : results.currentPage()) {
                 row.getInt("id");
             }
         }
@@ -319,7 +315,7 @@ public class CassandraAsyncIT {
     public static class ConcurrentlyExecuteSameAsyncStatement
             implements AppUnderTest, TransactionMarker {
 
-        private Session session;
+        private CqlSession session;
 
         @Override
         public void executeApp() throws Exception {
@@ -330,13 +326,13 @@ public class CassandraAsyncIT {
 
         @Override
         public void transactionMarker() throws Exception {
-            List<ResultSetFuture> futures = Lists.newArrayList();
+            List<CompletionStage<AsyncResultSet>> futures = Lists.newArrayList();
             for (int i = 0; i < 100; i++) {
                 futures.add(session.executeAsync("SELECT * FROM test.users"));
             }
-            for (ResultSetFuture future : futures) {
-                ResultSet results = future.get();
-                for (Row row : results) {
+            for (CompletionStage<AsyncResultSet> future : futures) {
+                AsyncResultSet results = future.toCompletableFuture().get();
+                for (Row row : results.currentPage()) {
                     row.getInt("id");
                 }
             }
@@ -346,7 +342,7 @@ public class CassandraAsyncIT {
     public static class ExecuteAsyncStatementReturningNoRecords
             implements AppUnderTest, TransactionMarker {
 
-        private Session session;
+        private CqlSession session;
 
         @Override
         public void executeApp() throws Exception {
@@ -357,9 +353,9 @@ public class CassandraAsyncIT {
 
         @Override
         public void transactionMarker() throws Exception {
-            ResultSet results =
-                    session.executeAsync("SELECT * FROM test.users where id = 12345").get();
-            for (Row row : results) {
+            AsyncResultSet results =
+                    session.executeAsync("SELECT * FROM test.users where id = 12345").toCompletableFuture().get();
+            for (Row row : results.currentPage()) {
                 row.getInt("id");
             }
         }
@@ -367,7 +363,7 @@ public class CassandraAsyncIT {
 
     public static class AsyncIterateUsingOneAndAll implements AppUnderTest, TransactionMarker {
 
-        private Session session;
+        private CqlSession session;
 
         @Override
         public void executeApp() throws Exception {
@@ -378,17 +374,17 @@ public class CassandraAsyncIT {
 
         @Override
         public void transactionMarker() throws Exception {
-            ResultSet results = session.executeAsync("SELECT * FROM test.users").get();
+            AsyncResultSet results = session.executeAsync("SELECT * FROM test.users").toCompletableFuture().get();
             results.one();
             results.one();
             results.one();
-            results.all();
+            results.currentPage();
         }
     }
 
     public static class AsyncExecuteBoundStatement implements AppUnderTest, TransactionMarker {
 
-        private Session session;
+        private CqlSession session;
 
         @Override
         public void executeApp() throws Exception {
@@ -401,15 +397,14 @@ public class CassandraAsyncIT {
         public void transactionMarker() throws Exception {
             PreparedStatement preparedStatement =
                     session.prepare("INSERT INTO test.users (id,  fname, lname) VALUES (?, ?, ?)");
-            BoundStatement boundStatement = new BoundStatement(preparedStatement);
-            boundStatement.bind(100, "f100", "l100");
-            session.executeAsync(boundStatement).get();
+            BoundStatement boundStatement = preparedStatement.bind(100, "f100", "l100");
+            session.executeAsync(boundStatement).toCompletableFuture().get();
         }
     }
 
     public static class AsyncExecuteBatchStatement implements AppUnderTest, TransactionMarker {
 
-        private Session session;
+        private CqlSession session;
 
         @Override
         public void executeApp() throws Exception {
@@ -420,21 +415,20 @@ public class CassandraAsyncIT {
 
         @Override
         public void transactionMarker() throws Exception {
-            BatchStatement batchStatement = new BatchStatement();
-            batchStatement.add(new SimpleStatement(
+            BatchStatement batchStatement = BatchStatement.newInstance(LOGGED);
+            batchStatement.add(SimpleStatement.newInstance(
                     "INSERT INTO test.users (id,  fname, lname) VALUES (100, 'f100', 'l100')"));
-            batchStatement.add(new SimpleStatement(
+            batchStatement.add(SimpleStatement.newInstance(
                     "INSERT INTO test.users (id,  fname, lname) VALUES (101, 'f101', 'l101')"));
             PreparedStatement preparedStatement =
                     session.prepare("INSERT INTO test.users (id,  fname, lname) VALUES (?, ?, ?)");
             for (int i = 200; i < 210; i++) {
-                BoundStatement boundStatement = new BoundStatement(preparedStatement);
-                boundStatement.bind(i, "f" + i, "l" + i);
+                BoundStatement boundStatement = preparedStatement.bind(i, "f" + i, "l" + i);
                 batchStatement.add(boundStatement);
             }
-            batchStatement.add(new SimpleStatement(
+            batchStatement.add(SimpleStatement.newInstance(
                     "INSERT INTO test.users (id,  fname, lname) VALUES (300, 'f300', 'l300')"));
-            session.executeAsync(batchStatement).get();
+            session.executeAsync(batchStatement).toCompletableFuture().get();
         }
     }
 }

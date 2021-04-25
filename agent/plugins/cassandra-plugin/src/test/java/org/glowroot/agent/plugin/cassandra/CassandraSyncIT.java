@@ -18,13 +18,13 @@ package org.glowroot.agent.plugin.cassandra;
 import java.util.Iterator;
 import java.util.List;
 
-import com.datastax.driver.core.BatchStatement;
-import com.datastax.driver.core.BoundStatement;
-import com.datastax.driver.core.PreparedStatement;
-import com.datastax.driver.core.ResultSet;
-import com.datastax.driver.core.Row;
-import com.datastax.driver.core.Session;
-import com.datastax.driver.core.SimpleStatement;
+import com.datastax.oss.driver.api.core.cql.BatchStatement;
+import com.datastax.oss.driver.api.core.cql.BoundStatement;
+import com.datastax.oss.driver.api.core.cql.PreparedStatement;
+import com.datastax.oss.driver.api.core.cql.ResultSet;
+import com.datastax.oss.driver.api.core.cql.Row;
+import com.datastax.oss.driver.api.core.CqlSession;
+import com.datastax.oss.driver.api.core.cql.SimpleStatement;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
@@ -36,6 +36,7 @@ import org.glowroot.agent.it.harness.TransactionMarker;
 import org.glowroot.wire.api.model.AggregateOuterClass.Aggregate;
 import org.glowroot.wire.api.model.TraceOuterClass.Trace;
 
+import static com.datastax.oss.driver.api.core.cql.DefaultBatchType.LOGGED;
 import static org.assertj.core.api.Assertions.assertThat;
 
 public class CassandraSyncIT {
@@ -123,7 +124,7 @@ public class CassandraSyncIT {
     @Test
     public void shouldExecuteStatementReturningNoRecordsCheckIsExhausted() throws Exception {
         // when
-        Trace trace = container.execute(ExecuteStatementReturningNoRecordsCheckIsExhausted.class);
+        Trace trace = container.execute(ExecuteStatementReturningNoRecordsCheckIsFullyFetched.class);
 
         // then
         Iterator<Trace.Entry> i = trace.getEntryList().iterator();
@@ -260,7 +261,7 @@ public class CassandraSyncIT {
 
     public static class ExecuteStatement implements AppUnderTest, TransactionMarker {
 
-        private Session session;
+        private CqlSession session;
 
         @Override
         public void executeApp() throws Exception {
@@ -281,7 +282,7 @@ public class CassandraSyncIT {
     public static class ExecuteStatementReturningNoRecords
             implements AppUnderTest, TransactionMarker {
 
-        private Session session;
+        private CqlSession session;
 
         @Override
         public void executeApp() throws Exception {
@@ -299,10 +300,10 @@ public class CassandraSyncIT {
         }
     }
 
-    public static class ExecuteStatementReturningNoRecordsCheckIsExhausted
+    public static class ExecuteStatementReturningNoRecordsCheckIsFullyFetched
             implements AppUnderTest, TransactionMarker {
 
-        private Session session;
+        private CqlSession session;
 
         @Override
         public void executeApp() throws Exception {
@@ -314,7 +315,7 @@ public class CassandraSyncIT {
         @Override
         public void transactionMarker() throws Exception {
             ResultSet results = session.execute("SELECT * FROM test.users where id = 12345");
-            if (results.isExhausted()) {
+            if (results.isFullyFetched()) {
                 return;
             }
             for (Row row : results) {
@@ -325,7 +326,7 @@ public class CassandraSyncIT {
 
     public static class IterateUsingOneAndAll implements AppUnderTest, TransactionMarker {
 
-        private Session session;
+        private CqlSession session;
 
         @Override
         public void executeApp() throws Exception {
@@ -346,7 +347,7 @@ public class CassandraSyncIT {
 
     public static class ExecuteBoundStatement implements AppUnderTest, TransactionMarker {
 
-        private Session session;
+        private CqlSession session;
 
         @Override
         public void executeApp() throws Exception {
@@ -359,15 +360,14 @@ public class CassandraSyncIT {
         public void transactionMarker() throws Exception {
             PreparedStatement preparedStatement =
                     session.prepare("INSERT INTO test.users (id,  fname, lname) VALUES (?, ?, ?)");
-            BoundStatement boundStatement = new BoundStatement(preparedStatement);
-            boundStatement.bind(100, "f100", "l100");
+            BoundStatement boundStatement = preparedStatement.bind(100, "f100", "l100");
             session.execute(boundStatement);
         }
     }
 
     public static class ExecuteBatchStatement implements AppUnderTest, TransactionMarker {
 
-        private Session session;
+        private CqlSession session;
 
         @Override
         public void executeApp() throws Exception {
@@ -378,19 +378,18 @@ public class CassandraSyncIT {
 
         @Override
         public void transactionMarker() throws Exception {
-            BatchStatement batchStatement = new BatchStatement();
-            batchStatement.add(new SimpleStatement(
+            BatchStatement batchStatement = BatchStatement.newInstance(LOGGED);
+            batchStatement.add(SimpleStatement.newInstance(
                     "INSERT INTO test.users (id,  fname, lname) VALUES (100, 'f100', 'l100')"));
-            batchStatement.add(new SimpleStatement(
+            batchStatement.add(SimpleStatement.newInstance(
                     "INSERT INTO test.users (id,  fname, lname) VALUES (101, 'f101', 'l101')"));
             PreparedStatement preparedStatement =
                     session.prepare("INSERT INTO test.users (id,  fname, lname) VALUES (?, ?, ?)");
             for (int i = 200; i < 210; i++) {
-                BoundStatement boundStatement = new BoundStatement(preparedStatement);
-                boundStatement.bind(i, "f" + i, "l" + i);
+                BoundStatement boundStatement = preparedStatement.bind(i, "f" + i, "l" + i);
                 batchStatement.add(boundStatement);
             }
-            batchStatement.add(new SimpleStatement(
+            batchStatement.add(SimpleStatement.newInstance(
                     "INSERT INTO test.users (id,  fname, lname) VALUES (300, 'f300', 'l300')"));
             session.execute(batchStatement);
         }

@@ -15,12 +15,11 @@
  */
 package org.glowroot.agent.plugin.cassandra;
 
+import org.glowroot.agent.it.harness.Container;
+import org.glowroot.agent.it.harness.Containers;
 import org.junit.runner.Description;
 import org.junit.runner.Result;
 import org.junit.runner.notification.RunListener;
-
-import org.glowroot.agent.it.harness.Container;
-import org.glowroot.agent.it.harness.Containers;
 
 public class SharedSetupRunListener extends RunListener {
 
@@ -37,7 +36,9 @@ public class SharedSetupRunListener extends RunListener {
 
     public static void close(Container container) throws Exception {
         if (sharedContainer == null) {
-            container.close();
+            if (container != null) {
+                container.close();
+            }
             CassandraWrapper.stop();
         }
     }
