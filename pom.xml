@@ -432,7 +432,7 @@
         </plugin>
         <plugin>
           <artifactId>maven-shade-plugin</artifactId>
-          <version>3.4.1</version>
+          <version>3.5.1</version>
         </plugin>
         <plugin>
           <artifactId>maven-site-plugin</artifactId>
@@ -561,6 +561,7 @@
                   <lib>${java.home}/jmods/java.base.jmod</lib>
                   <!-- java.sql.jmod is needed for glowroot-agent-embedded -->
                   <lib>${java.home}/jmods/java.sql.jmod</lib>
+                  <lib>${java.home}/jmods/java.logging.jmod</lib>
                 </libs>
               </configuration>
             </plugin>

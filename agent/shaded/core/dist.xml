@@ -17,7 +17,8 @@
         <excludes>
           <exclude>doc-files/speclicense.html</exclude>
           <exclude>overview.html</exclude>
-          <exclude>META-INF/services/javax.mail.Provider</exclude>
+          <exclude>META-INF/services/org.glowroot.agent.embedded.shaded.jakarta.mail.Provider</exclude>
+          <exclude>META-INF/services/org.glowroot.agent.embedded.shaded.jakarta.mail.util.StreamProvider</exclude>
           <exclude>META-INF/LICENSE.md</exclude>
           <exclude>META-INF/NOTICE.md</exclude>
           <exclude>META-INF/glowroot.javamail.charset.map</exclude>

@@ -37,6 +37,7 @@
   <build>
     <plugins>
       <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
         <!-- use LICENSE and NOTICE under src/main/resources -->
         <artifactId>maven-remote-resources-plugin</artifactId>
         <configuration>
@@ -44,6 +45,7 @@
         </configuration>
       </plugin>
       <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-shade-plugin</artifactId>
         <configuration>
           <dependencyReducedPomLocation>
@@ -64,7 +66,7 @@
               <include>com.h2database:h2</include>
               <include>com.ning:compress-lzf</include>
               <include>jakarta.mail:jakarta.mail-api</include>
-              <include>org.eclipse.angus:angus.mail</include>
+              <include>org.eclipse.angus:angus-mail</include>
               <include>org.eclipse.angus:angus.activation</include>
             </includes>
           </artifactSet>
@@ -100,19 +102,30 @@
               </excludes>
             </filter>
             <filter>
-              <artifact>org.eclipse.angus:angus.mail</artifact>
+              <artifact>org.eclipse.angus:angus-mail</artifact>
               <excludes>
                 <!-- javamail.address.map and javamail.providers are replaced with
                   glowroot.javamail.address.map and glowroot.javamail.providers -->
+                <exclude>META-INF/hk2-locator/default</exclude>
                 <exclude>META-INF/gfprobe-provider.xml</exclude>
                 <exclude>META-INF/mailcap</exclude>
+                <exclude>META-INF/native-image/**</exclude>
                 <exclude>META-INF/javamail.address.map</exclude>
+                <exclude>META-INF/javamail.default.address.map</exclude>
                 <exclude>META-INF/javamail.charset.map</exclude>
                 <exclude>META-INF/javamail.providers</exclude>
+                <exclude>META-INF/javamail.default.providers</exclude>
                 <exclude>META-INF/LICENSE.md</exclude>
+                <exclude>META-INF/MANIFEST.MF</exclude>
                 <exclude>META-INF/NOTICE.md</exclude>
                 <!-- pom.xml is only present in sources jar -->
                 <exclude>pom.xml</exclude>
+
+
+<!--                <exclude>org/eclipse/angus/mail/util/logging/MailHandler.class</exclude>-->
+
+
+
               </excludes>
             </filter>
             <filter>
@@ -228,10 +241,6 @@
               <shadedPattern>org.glowroot.agent.embedded.shaded.jakarta.mail</shadedPattern>
             </relocation>
             <relocation>
-              <pattern>com.sun.mail</pattern>
-              <shadedPattern>org.glowroot.agent.embedded.shaded.com.sun.mail</shadedPattern>
-            </relocation>
-            <relocation>
               <rawString>true</rawString>
               <pattern>^/META-INF/javamail.default.address.map$</pattern>
               <shadedPattern>/META-INF/glowroot.javamail.default.address.map</shadedPattern>
@@ -270,6 +279,16 @@
               <shadedPattern>META-INF/glowroot.mailcap</shadedPattern>
             </relocation>
             <relocation>
+              <rawString>true</rawString>
+              <pattern>^META-INF/services/jakarta.mail.Provider$</pattern>
+              <shadedPattern>META-INF/services/org.glowroot.agent.embedded.shaded.jakarta.mail.Provider</shadedPattern>
+            </relocation>
+            <relocation>
+              <rawString>true</rawString>
+              <pattern>^META-INF/services/jakarta.mail.util.StreamProvider$</pattern>
+              <shadedPattern>META-INF/services/org.glowroot.agent.embedded.shaded.jakarta.mail.util.StreamProvider</shadedPattern>
+            </relocation>
+            <relocation>
               <pattern>org.eclipse.angus.mail</pattern>
               <shadedPattern>org.glowroot.agent.embedded.shaded.org.eclipse.angus.mail</shadedPattern>
             </relocation>
@@ -278,6 +297,10 @@
               <shadedPattern>org.glowroot.agent.embedded.shaded.org.eclipse.angus.activation</shadedPattern>
             </relocation>
           </relocations>
+          <transformers>
+            <transformer
+                    implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer" />
+          </transformers>
         </configuration>
         <executions>
           <execution>
@@ -308,7 +331,10 @@
             <option>-keep class !org.glowroot.agent.embedded.shaded.** { *; }</option>
             <option>-keep class org.glowroot.agent.embedded.shaded.org.glowroot.** { *; }</option>
             <option>
-              -keep class org.glowroot.agent.embedded.shaded.com.sun.mail.smtp.** { *; }
+              -keep class org.glowroot.agent.embedded.shaded.org.eclipse.angus.mail.smtp.** { *; }
+            </option>
+            <option>
+              -keep class org.glowroot.agent.embedded.shaded.org.eclipse.angus.mail.util.** { *; }
             </option>
             <!-- keep special enumeration methods (see "Processing enumeration classes" section at
               http://proguard.sourceforge.net/manual/examples.html) -->
