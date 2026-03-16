@@ -9,6 +9,7 @@ import { useState } from 'react'
 import { useLayout } from '../../contexts/LayoutContext'
 import { useAgent } from '../../contexts/AgentContext'
 import { useAuth } from '../../contexts/AuthContext'
+import { AgentSelector } from './AgentSelector'
 import { cn } from '../../lib/utils'
 
 function classicPath(modernPath: string): string {
@@ -70,6 +71,9 @@ export function Navbar() {
           >
             Glowroot
           </Link>
+
+          {/* Agent selector (central mode only) */}
+          {layout.central && <AgentSelector />}
 
           {/* Desktop nav */}
           <div className="hidden md:flex flex-1 items-center gap-0.5">
