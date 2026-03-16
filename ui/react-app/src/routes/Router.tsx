@@ -2,6 +2,21 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { LayoutProvider } from '../contexts/LayoutContext'
 import { AppLayout } from '../components/layout/AppLayout'
 import { NotYetAvailable } from '../components/shared/NotYetAvailable'
+import { AdminLayout } from './admin/AdminLayout'
+import { AdminGeneralPage } from './admin/AdminGeneralPage'
+import { AdminWebPage } from './admin/AdminWebPage'
+import { AdminStoragePage } from './admin/AdminStoragePage'
+import { AdminSmtpPage } from './admin/AdminSmtpPage'
+import { AdminHttpProxyPage } from './admin/AdminHttpProxyPage'
+import { AdminIntegrationListPage } from './admin/AdminIntegrationListPage'
+import { AdminLdapPage } from './admin/AdminLdapPage'
+import { AdminPagerDutyPage } from './admin/AdminPagerDutyPage'
+import { AdminSlackPage } from './admin/AdminSlackPage'
+import { AdminHealthchecksIoPage } from './admin/AdminHealthchecksIoPage'
+import { AdminUserListPage } from './admin/AdminUserListPage'
+import { AdminUserPage } from './admin/AdminUserPage'
+import { AdminRoleListPage } from './admin/AdminRoleListPage'
+import { AdminRolePage } from './admin/AdminRolePage'
 
 export function AppRouter() {
   return (
@@ -77,21 +92,21 @@ export function AppRouter() {
             </Route>
 
             {/* Admin routes */}
-            <Route path="admin">
-              <Route path="general" element={<NotYetAvailable />} />
-              <Route path="user-list" element={<NotYetAvailable />} />
-              <Route path="user" element={<NotYetAvailable />} />
-              <Route path="role-list" element={<NotYetAvailable />} />
-              <Route path="role" element={<NotYetAvailable />} />
-              <Route path="web" element={<NotYetAvailable />} />
-              <Route path="storage" element={<NotYetAvailable />} />
-              <Route path="smtp" element={<NotYetAvailable />} />
-              <Route path="http-proxy" element={<NotYetAvailable />} />
-              <Route path="integration-list" element={<NotYetAvailable />} />
-              <Route path="integration/ldap" element={<NotYetAvailable />} />
-              <Route path="integration/pager-duty" element={<NotYetAvailable />} />
-              <Route path="integration/slack" element={<NotYetAvailable />} />
-              <Route path="integration/healthchecks-io" element={<NotYetAvailable />} />
+            <Route path="admin" element={<AdminLayout />}>
+              <Route path="general" element={<AdminGeneralPage />} />
+              <Route path="user-list" element={<AdminUserListPage />} />
+              <Route path="user" element={<AdminUserPage />} />
+              <Route path="role-list" element={<AdminRoleListPage />} />
+              <Route path="role" element={<AdminRolePage />} />
+              <Route path="web" element={<AdminWebPage />} />
+              <Route path="storage" element={<AdminStoragePage />} />
+              <Route path="smtp" element={<AdminSmtpPage />} />
+              <Route path="http-proxy" element={<AdminHttpProxyPage />} />
+              <Route path="integration-list" element={<AdminIntegrationListPage />} />
+              <Route path="integration/ldap" element={<AdminLdapPage />} />
+              <Route path="integration/pager-duty" element={<AdminPagerDutyPage />} />
+              <Route path="integration/slack" element={<AdminSlackPage />} />
+              <Route path="integration/healthchecks-io" element={<AdminHealthchecksIoPage />} />
               <Route path="json" element={<NotYetAvailable />} />
             </Route>
 
