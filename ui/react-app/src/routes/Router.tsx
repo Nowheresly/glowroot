@@ -2,6 +2,18 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { LayoutProvider } from '../contexts/LayoutContext'
 import { AppLayout } from '../components/layout/AppLayout'
 import { NotYetAvailable } from '../components/shared/NotYetAvailable'
+// Transaction & Error pages
+import { TransactionProvider } from '../contexts/TransactionContext'
+import { TransactionLayout } from './transaction/TransactionLayout'
+import { TransactionAveragePage } from './transaction/TransactionAveragePage'
+import { TransactionPercentilesPage } from './transaction/TransactionPercentilesPage'
+import { TransactionThroughputPage } from './transaction/TransactionThroughputPage'
+import { TransactionTracesPage } from './transaction/TransactionTracesPage'
+import { TransactionQueriesPage } from './transaction/TransactionQueriesPage'
+import { TransactionServiceCallsPage } from './transaction/TransactionServiceCallsPage'
+import { TransactionThreadProfilePage } from './transaction/TransactionThreadProfilePage'
+import { TransactionFlameGraphPage } from './transaction/TransactionFlameGraphPage'
+import { ErrorMessagesPage } from './transaction/ErrorMessagesPage'
 // JVM pages
 import { JvmLayout } from './jvm/JvmLayout'
 import { JvmEnvironmentPage } from './jvm/JvmEnvironmentPage'
@@ -63,22 +75,22 @@ export function AppRouter() {
             <Route index element={<DefaultRedirect />} />
 
             {/* Transaction routes */}
-            <Route path="transaction">
-              <Route path="average" element={<NotYetAvailable />} />
-              <Route path="percentiles" element={<NotYetAvailable />} />
-              <Route path="throughput" element={<NotYetAvailable />} />
-              <Route path="traces" element={<NotYetAvailable />} />
-              <Route path="queries" element={<NotYetAvailable />} />
-              <Route path="service-calls" element={<NotYetAvailable />} />
-              <Route path="thread-profile" element={<NotYetAvailable />} />
-              <Route path="thread-flame-graph" element={<NotYetAvailable />} />
+            <Route path="transaction" element={<TransactionProvider shortName="transaction"><TransactionLayout /></TransactionProvider>}>
+              <Route path="average" element={<TransactionAveragePage />} />
+              <Route path="percentiles" element={<TransactionPercentilesPage />} />
+              <Route path="throughput" element={<TransactionThroughputPage />} />
+              <Route path="traces" element={<TransactionTracesPage traceKind="transaction" />} />
+              <Route path="queries" element={<TransactionQueriesPage />} />
+              <Route path="service-calls" element={<TransactionServiceCallsPage />} />
+              <Route path="thread-profile" element={<TransactionThreadProfilePage />} />
+              <Route path="thread-flame-graph" element={<TransactionFlameGraphPage />} />
               <Route path="trace-thread-flame-graph" element={<NotYetAvailable />} />
             </Route>
 
             {/* Error routes */}
-            <Route path="error">
-              <Route path="messages" element={<NotYetAvailable />} />
-              <Route path="traces" element={<NotYetAvailable />} />
+            <Route path="error" element={<TransactionProvider shortName="error"><TransactionLayout /></TransactionProvider>}>
+              <Route path="messages" element={<ErrorMessagesPage />} />
+              <Route path="traces" element={<TransactionTracesPage traceKind="error" />} />
             </Route>
 
             {/* JVM routes */}

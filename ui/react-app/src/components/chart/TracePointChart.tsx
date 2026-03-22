@@ -266,14 +266,10 @@ export function TracePointChart({
         onSelection?.(xScale.invert(x0).getTime(), xScale.invert(x1).getTime())
       })
 
-    g.append('g').attr('class', 'brush').call(brush)
+    const brushGroup = g.append('g').attr('class', 'brush').call(brush)
 
-    // Ctrl+scroll zoom
-    g.append('rect')
-      .attr('width', width)
-      .attr('height', chartHeight)
-      .attr('fill', 'none')
-      .attr('pointer-events', 'all')
+    // Ctrl+scroll zoom — attach to brush overlay so it doesn't block drag selection
+    brushGroup.select('.overlay')
       .style('cursor', 'crosshair')
       .on('wheel', function (event: WheelEvent) {
         if (!event.ctrlKey) return
