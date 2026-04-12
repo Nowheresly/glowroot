@@ -25,6 +25,9 @@ import java.sql.SQLException;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
+import java.util.concurrent.CompletionStage;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -143,11 +146,11 @@ public class CommonHandler {
         this.jsonServiceMappings = ImmutableList.copyOf(jsonServiceMappings);
     }
 
-    public CommonResponse handle(CommonRequest request) throws Exception {
+    public CompletionStage<CommonResponse> handle(CommonRequest request) throws Exception {
         logger.debug("handleRequest(): path={}", request.getPath());
-        CommonResponse response = handleIfLoginOrLogoutRequest(request);
-        if (response != null) {
-            return response;
+        CommonResponse loginOrLogoutResponse = handleIfLoginOrLogoutRequest(request);
+        if (loginOrLogoutResponse != null) {
+            return CompletableFuture.completedFuture(loginOrLogoutResponse);
         }
         boolean autoRefresh = isAutoRefresh(request.getParameters("auto-refresh"));
         boolean touchSession = !autoRefresh && !request.getPath().equals("/backend/layout");
@@ -156,23 +159,31 @@ public class CommonHandler {
         Glowroot.setTransactionUser(authentication.caseAmbiguousUsername());
         // need to grab agent-rollup-id up here before it is removed from query parameters
         String agentRollupId = getAgentRollupIdFromRequest(request);
-        response = handleRequest(request, authentication);
-        if (request.getPath().startsWith("/backend/")) {
-            if (!request.getPath().equals("/backend/layout")) {
-                response.setHeader("Glowroot-Layout-Version",
-                        layoutService.getLayoutVersion(authentication));
-            }
-            if (!request.getPath().equals("/backend/agent-rollup-layout")
-                    && agentRollupId != null) {
-                String agentRollupLayoutVersion = layoutService
-                        .getAgentRollupLayoutVersion(authentication, agentRollupId);
-                if (agentRollupLayoutVersion != null) {
-                    response.setHeader("Glowroot-Agent-Rollup-Layout-Version",
-                            agentRollupLayoutVersion);
-                }
-            }
-        }
-        return response;
+        return handleRequest(request, authentication)
+                .thenApply(response -> {
+                    try {
+                        if (request.getPath().startsWith("/backend/")) {
+                            if (!request.getPath().equals("/backend/layout")) {
+                                response.setHeader("Glowroot-Layout-Version",
+                                        layoutService.getLayoutVersion(authentication));
+                            }
+                            if (!request.getPath().equals("/backend/agent-rollup-layout")
+                                    && agentRollupId != null) {
+                                String agentRollupLayoutVersion = layoutService
+                                        .getAgentRollupLayoutVersion(authentication,
+                                                agentRollupId);
+                                if (agentRollupLayoutVersion != null) {
+                                    response.setHeader(
+                                            "Glowroot-Agent-Rollup-Layout-Version",
+                                            agentRollupLayoutVersion);
+                                }
+                            }
+                        }
+                        return response;
+                    } catch (Exception e) {
+                        throw new CompletionException(e);
+                    }
+                });
     }
 
     private @Nullable CommonResponse handleIfLoginOrLogoutRequest(CommonRequest request)
@@ -223,18 +234,19 @@ public class CommonHandler {
         return null;
     }
 
-    private CommonResponse handleRequest(CommonRequest request, Authentication authentication)
-            throws Exception {
+    private CompletionStage<CommonResponse> handleRequest(CommonRequest request,
+            Authentication authentication) throws Exception {
         String path = request.getPath();
         HttpService httpService = getHttpService(path);
         if (httpService != null) {
-            return handleHttpService(request, httpService, authentication);
+            return CompletableFuture.completedFuture(
+                    handleHttpService(request, httpService, authentication));
         }
         JsonServiceMapping jsonServiceMapping = getJsonServiceMapping(request, path);
         if (jsonServiceMapping != null) {
             return handleJsonServiceMappings(request, jsonServiceMapping, authentication);
         }
-        return handleStaticResource(path, request);
+        return CompletableFuture.completedFuture(handleStaticResource(path, request));
     }
 
     private @Nullable HttpService getHttpService(String path) {
@@ -275,7 +287,7 @@ public class CommonHandler {
         return null;
     }
 
-    private CommonResponse handleJsonServiceMappings(CommonRequest request,
+    private CompletionStage<CommonResponse> handleJsonServiceMappings(CommonRequest request,
             JsonServiceMapping jsonServiceMapping, Authentication authentication) throws Exception {
         List<Class<?>> parameterTypes = Lists.newArrayList();
         List<Object> parameters = Lists.newArrayList();
@@ -317,22 +329,49 @@ public class CommonHandler {
                     || authentication.isAdminPermitted(jsonServiceMapping.permission());
         }
         if (!permitted) {
-            return handleNotAuthorized(request, authentication);
+            return CompletableFuture.completedFuture(
+                    handleNotAuthorized(request, authentication));
         }
         Object responseObject;
         try {
             responseObject = callMethod(jsonServiceMapping, parameterTypes, parameters,
                     queryParameters, authentication, request);
         } catch (Exception e) {
-            return newHttpResponseFromException(request, authentication, e);
+            return CompletableFuture.completedFuture(
+                    newHttpResponseFromException(request, authentication, e));
         }
-        return buildJsonResponse(responseObject);
+        if (responseObject instanceof CompletionStage) {
+            return ((CompletionStage<?>) responseObject)
+                    .thenApply(result -> buildJsonResponse(result))
+                    .exceptionally(throwable -> {
+                        Exception e = unwrapAsyncException(throwable);
+                        try {
+                            return newHttpResponseFromException(request, authentication, e);
+                        } catch (Exception e2) {
+                            logger.error(e2.getMessage(), e2);
+                            try {
+                                return newHttpResponseWithStackTrace(e2,
+                                        INTERNAL_SERVER_ERROR, null);
+                            } catch (IOException e3) {
+                                logger.error(e3.getMessage(), e3);
+                                return new CommonResponse(INTERNAL_SERVER_ERROR);
+                            }
+                        }
+                    });
+        }
+        return CompletableFuture.completedFuture(buildJsonResponse(responseObject));
     }
 
     CommonResponse newHttpResponseFromException(CommonRequest request,
             Authentication authentication, Exception exception) throws Exception {
         Exception e = exception;
         if (e instanceof InvocationTargetException) {
+            Throwable cause = e.getCause();
+            if (cause instanceof Exception) {
+                e = (Exception) cause;
+            }
+        }
+        if (e instanceof CompletionException) {
             Throwable cause = e.getCause();
             if (cause instanceof Exception) {
                 e = (Exception) cause;
@@ -355,6 +394,17 @@ public class CommonHandler {
                     "Query timed out (timeout is configurable under Configuration > Advanced)");
         }
         return newHttpResponseWithStackTrace(e, INTERNAL_SERVER_ERROR, null);
+    }
+
+    private static Exception unwrapAsyncException(Throwable throwable) {
+        Throwable cause = throwable;
+        if (cause instanceof CompletionException && cause.getCause() != null) {
+            cause = cause.getCause();
+        }
+        if (cause instanceof Exception) {
+            return (Exception) cause;
+        }
+        return new RuntimeException(cause);
     }
 
     private CommonResponse handleNotAuthorized(CommonRequest request,
@@ -514,13 +564,13 @@ public class CommonHandler {
         return new CommonResponse(status, MediaType.JSON_UTF_8, sb.toString());
     }
 
-    static CommonResponse newHttpResponseWithStackTrace(Exception e,
+    static CommonResponse newHttpResponseWithStackTrace(Throwable e,
             HttpResponseStatus status, @Nullable String simplifiedMessage) throws IOException {
         return new CommonResponse(status, MediaType.JSON_UTF_8,
                 getHttpResponseWithStackTrace(e, simplifiedMessage));
     }
 
-    private static String getHttpResponseWithStackTrace(Exception e,
+    private static String getHttpResponseWithStackTrace(Throwable e,
             @Nullable String simplifiedMessage) throws IOException {
         StringBuilder stackTrace = new StringBuilder();
         e.printStackTrace(new PrintWriter(CharStreams.asWriter(stackTrace)));

@@ -92,7 +92,8 @@ public class GlowrootServlet extends HttpServlet {
         HttpServletResponse response = (HttpServletResponse) res;
         CommonResponse commonResponse;
         try {
-            commonResponse = checkNotNull(commonHandler).handle(new ServletReq(request));
+            commonResponse = checkNotNull(commonHandler).handle(new ServletReq(request))
+                    .toCompletableFuture().join();
         } catch (Exception e) {
             throw new ServletException(e);
         }

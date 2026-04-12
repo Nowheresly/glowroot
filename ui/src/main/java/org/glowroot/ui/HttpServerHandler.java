@@ -18,6 +18,7 @@ package org.glowroot.ui;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletionStage;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Strings;
@@ -46,6 +47,7 @@ import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.HttpUtil;
 import io.netty.handler.codec.http.QueryStringDecoder;
 import io.netty.handler.stream.ChunkedInput;
+import io.netty.util.AttributeKey;
 import io.netty.util.concurrent.GlobalEventExecutor;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
@@ -66,8 +68,8 @@ class HttpServerHandler extends ChannelInboundHandlerAdapter {
 
     private static final Logger logger = LoggerFactory.getLogger(HttpServerHandler.class);
 
-    private static final ThreadLocal</*@Nullable*/ Channel> currentChannel =
-            new ThreadLocal</*@Nullable*/ Channel>();
+    private static final AttributeKey<Boolean> PROCESSING_REQUEST =
+            AttributeKey.valueOf("glowroot.processingRequest");
 
     private final ChannelGroup allChannels;
 
@@ -88,9 +90,8 @@ class HttpServerHandler extends ChannelInboundHandlerAdapter {
     }
 
     void closeAllButCurrent() throws Exception {
-        Channel current = currentChannel.get();
         for (Channel channel : allChannels) {
-            if (channel != current) {
+            if (channel.attr(PROCESSING_REQUEST).get() != Boolean.TRUE) {
                 channel.close().await().get();
             }
         }
@@ -107,39 +108,71 @@ class HttpServerHandler extends ChannelInboundHandlerAdapter {
         if (request.decoderResult().isFailure()) {
             CommonResponse response = new CommonResponse(BAD_REQUEST, MediaType.PLAIN_TEXT_UTF_8,
                     Strings.nullToEmpty(request.decoderResult().cause().getMessage()));
-            sendResponse(ctx, request, response, false);
+            sendResponseAndFlush(ctx, request, response, false);
+            request.release();
             return;
         }
         String uri = request.uri();
         logger.debug("channelRead(): request.uri={}", uri);
         Channel channel = ctx.channel();
-        currentChannel.set(channel);
+        String contextPath = contextPathSupplier.get();
+        boolean keepAlive = HttpUtil.isKeepAlive(request);
+        if (!uri.startsWith(contextPath)) {
+            DefaultFullHttpResponse response = new DefaultFullHttpResponse(HTTP_1_1, FOUND);
+            response.headers().set(HttpHeaderNames.LOCATION, contextPath);
+            sendFullResponseAndFlush(ctx, request, response, keepAlive);
+            request.release();
+            return;
+        }
+        QueryStringDecoder decoder = new QueryStringDecoder(stripContextPath(uri, contextPath));
+        CommonRequest commonRequest = new NettyRequest(request, contextPath, decoder);
+
+        // retain request so it survives beyond this method for async processing
+        request.retain();
+        channel.attr(PROCESSING_REQUEST).set(Boolean.TRUE);
+
+        CompletionStage<CommonResponse> responseFuture;
         try {
-            String contextPath = contextPathSupplier.get();
-            boolean keepAlive = HttpUtil.isKeepAlive(request);
-            if (!uri.startsWith(contextPath)) {
-                DefaultFullHttpResponse response = new DefaultFullHttpResponse(HTTP_1_1, FOUND);
-                response.headers().set(HttpHeaderNames.LOCATION, contextPath);
-                sendFullResponse(ctx, request, response, keepAlive);
-                return;
-            }
-            QueryStringDecoder decoder = new QueryStringDecoder(stripContextPath(uri, contextPath));
-            CommonRequest commonRequest = new NettyRequest(request, contextPath, decoder);
-            CommonResponse response = commonHandler.handle(commonRequest);
-            if (response.isCloseConnectionAfterPortChange()) {
-                response.setHeader("Connection", "close");
-                keepAlive = false;
-            }
-            sendResponse(ctx, request, response, keepAlive);
+            responseFuture = commonHandler.handle(commonRequest);
         } catch (Exception e) {
             logger.error("error handling request {}: {}", uri, e.getMessage(), e);
             CommonResponse response =
                     CommonHandler.newHttpResponseWithStackTrace(e, INTERNAL_SERVER_ERROR, null);
-            sendResponse(ctx, request, response, false);
-        } finally {
-            currentChannel.remove();
+            sendResponseAndFlush(ctx, request, response, false);
+            channel.attr(PROCESSING_REQUEST).set(null);
             request.release();
+            // release the extra retain() above
+            request.release();
+            return;
         }
+
+        responseFuture.whenComplete((response, throwable) -> {
+            try {
+                if (throwable != null) {
+                    logger.error("error handling request {}: {}", uri,
+                            throwable.getMessage(), throwable);
+                    CommonResponse errorResponse = CommonHandler.newHttpResponseWithStackTrace(
+                            throwable, INTERNAL_SERVER_ERROR, null);
+                    writeResponseOnEventLoop(ctx, request, errorResponse, false);
+                } else {
+                    boolean effectiveKeepAlive = keepAlive;
+                    if (response.isCloseConnectionAfterPortChange()) {
+                        response.setHeader("Connection", "close");
+                        effectiveKeepAlive = false;
+                    }
+                    writeResponseOnEventLoop(ctx, request, response, effectiveKeepAlive);
+                }
+            } catch (Exception e) {
+                logger.error("error sending response for {}: {}", uri, e.getMessage(), e);
+                ctx.close();
+            } finally {
+                channel.attr(PROCESSING_REQUEST).set(null);
+                // release the extra retain() from above
+                request.release();
+            }
+        });
+        // release the original ref count (from HttpObjectAggregator)
+        request.release();
     }
 
     private static void sendResponse(ChannelHandlerContext ctx, FullHttpRequest request,
@@ -189,6 +222,40 @@ class HttpServerHandler extends ChannelInboundHandlerAdapter {
         if (!keepAlive) {
             future.addListener(ChannelFutureListener.CLOSE);
         }
+    }
+
+    // used by async callback path where channelReadComplete() has already fired
+    private static void writeResponseOnEventLoop(ChannelHandlerContext ctx,
+            FullHttpRequest request, CommonResponse response, boolean keepAlive) {
+        if (ctx.executor().inEventLoop()) {
+            try {
+                sendResponseAndFlush(ctx, request, response, keepAlive);
+            } catch (Exception e) {
+                logger.error("error sending response: {}", e.getMessage(), e);
+                ctx.close();
+            }
+        } else {
+            ctx.executor().execute(() -> {
+                try {
+                    sendResponseAndFlush(ctx, request, response, keepAlive);
+                } catch (Exception e) {
+                    logger.error("error sending response: {}", e.getMessage(), e);
+                    ctx.close();
+                }
+            });
+        }
+    }
+
+    private static void sendResponseAndFlush(ChannelHandlerContext ctx, FullHttpRequest request,
+            CommonResponse response, boolean keepAlive) throws IOException {
+        sendResponse(ctx, request, response, keepAlive);
+        ctx.flush();
+    }
+
+    private static void sendFullResponseAndFlush(ChannelHandlerContext ctx,
+            FullHttpRequest request, FullHttpResponse response, boolean keepAlive) {
+        sendFullResponse(ctx, request, response, keepAlive);
+        ctx.flush();
     }
 
     @Override
