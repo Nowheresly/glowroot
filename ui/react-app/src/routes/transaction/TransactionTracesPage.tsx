@@ -95,7 +95,7 @@ export function TransactionTracesPage({ traceKind = 'transaction' }: { traceKind
 
   // Fetch points
   const fetchPoints = useCallback(() => {
-    if (!agentRollupId || !txn.transactionType) return
+    if (agentRollupId == null || !txn.transactionType) return
     const fetchId = ++fetchIdRef.current
     setLoading(true)
     setError(null)

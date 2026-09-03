@@ -24,7 +24,7 @@ export function ConfigAlertListPage() {
   const canEdit = agentRollup?.permissions?.config?.edit?.alerts ?? false
 
   const load = useCallback(async () => {
-    if (!agentRollupId) return
+    if (agentRollupId == null) return
     try {
       const resp = await apiGet<AlertListData>('/backend/config/alerts', {
         'agent-rollup-id': agentRollupId,

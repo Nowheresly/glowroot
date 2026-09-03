@@ -76,7 +76,7 @@ export function useChartData<T = unknown>(
 
   const fetchData = useCallback(
     async (suppressSpinner?: boolean) => {
-      if (!agentRollupId) return
+      if (agentRollupId == null) return
       const fetchId = ++fetchIdRef.current
       if (!suppressSpinner) {
         setLoading(true)

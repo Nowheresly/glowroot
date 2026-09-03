@@ -58,7 +58,7 @@ export function ConfigUiDefaultsPage() {
   }
 
   const load = useCallback(async () => {
-    if (!agentRollupId) return
+    if (agentRollupId == null) return
     try {
       const resp = await apiGet<UiDefaultsData>('/backend/config/ui-defaults', {
         'agent-rollup-id': agentRollupId,
@@ -88,7 +88,7 @@ export function ConfigUiDefaultsPage() {
     : false
 
   async function handleSave() {
-    if (!agentRollupId) return
+    if (agentRollupId == null) return
     const resp = await apiPost<UiDefaultsData>(
       '/backend/config/ui-defaults?agent-rollup-id=' + encodeURIComponent(agentRollupId),
       buildConfig()

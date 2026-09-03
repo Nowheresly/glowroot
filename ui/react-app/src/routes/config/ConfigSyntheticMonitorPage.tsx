@@ -68,7 +68,7 @@ export function ConfigSyntheticMonitorPage() {
   const canEdit = agentRollup?.permissions?.config?.edit?.syntheticMonitors ?? false
 
   const load = useCallback(async () => {
-    if (!agentRollupId) return
+    if (agentRollupId == null) return
     try {
       if (isNew) {
         const newConfig: SyntheticMonitorConfig = { kind: 'ping' }
@@ -104,7 +104,7 @@ export function ConfigSyntheticMonitorPage() {
   const hasChanges = JSON.stringify(config) !== JSON.stringify(originalConfig)
 
   async function handleSave() {
-    if (!agentRollupId) return
+    if (agentRollupId == null) return
     const endpoint = isNew
       ? '/backend/config/synthetic-monitors/add'
       : '/backend/config/synthetic-monitors/update'
@@ -135,7 +135,7 @@ export function ConfigSyntheticMonitorPage() {
   }
 
   async function handleDelete() {
-    if (!agentRollupId) return
+    if (agentRollupId == null) return
     await apiPost(
       '/backend/config/synthetic-monitors/remove?agent-rollup-id=' + encodeURIComponent(agentRollupId),
       { id: config.id }

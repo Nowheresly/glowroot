@@ -40,7 +40,7 @@ export function TransactionServiceCallsPage() {
   const sortAsc = searchParams.get('sort-direction') === 'asc'
 
   useEffect(() => {
-    if (!agentRollupId || !txn.transactionType) return
+    if (agentRollupId == null || !txn.transactionType) return
     setLoading(true)
     setError(null)
 
