@@ -12,6 +12,7 @@ import { apiGet } from '../../lib/api'
 import { TracePointChart, type TracePoint } from '../../components/chart'
 import { PageSpinner } from '../../components/shared/Spinner'
 import { HttpError } from '../../components/shared/HttpError'
+import { TraceDetailModal, type TraceRef } from '../../components/trace/TraceDetailModal'
 
 interface PointsResponse {
   normalPoints: Array<[number, number, string, string, boolean?]>
@@ -87,6 +88,8 @@ export function TransactionTracesPage({ traceKind = 'transaction' }: { traceKind
   const [expired, setExpired] = useState(false)
   const [limitExceeded, setLimitExceeded] = useState(false)
 
+  const [selectedTrace, setSelectedTrace] = useState<TraceRef | null>(null)
+
   const fetchIdRef = useRef(0)
   const showErrorMessageFilter = traceKind === 'error'
 
@@ -152,13 +155,11 @@ export function TransactionTracesPage({ traceKind = 'transaction' }: { traceKind
   }, [fetchPoints, txn.refreshCounter])
 
   function handlePointClick(point: TracePoint) {
-    // Open trace in new tab for now (trace detail modal is complex — deferred)
-    const base = window.location.origin
-    let url = `${base}/transaction/traces?modal-agent-id=${encodeURIComponent(point.agentId)}&modal-trace-id=${point.traceId}`
-    if (point.checkLiveTraces) {
-      url += '&modal-check-live-traces=true'
-    }
-    window.open(url, '_blank')
+    setSelectedTrace({
+      agentId: point.agentId,
+      traceId: point.traceId,
+      checkLiveTraces: point.checkLiveTraces,
+    })
   }
 
   function clearFilters() {
@@ -339,6 +340,8 @@ export function TransactionTracesPage({ traceKind = 'transaction' }: { traceKind
           </button>
         </div>
       </div>
+
+      <TraceDetailModal trace={selectedTrace} onClose={() => setSelectedTrace(null)} />
     </div>
   )
 }
