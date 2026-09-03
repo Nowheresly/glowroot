@@ -13,7 +13,6 @@ import { AgentSelector } from './AgentSelector'
 import { cn } from '../../lib/utils'
 
 function classicPath(modernPath: string): string {
-  // strip /modern prefix
   return modernPath.replace(/^\/modern/, '') || '/'
 }
 
@@ -25,7 +24,7 @@ export function Navbar() {
   const [mobileOpen, setMobileOpen] = useState(false)
 
   const qs = agentQueryString()
-  const currentSection = location.pathname.split('/')[2] // after /modern/
+  const currentSection = location.pathname.split('/')[2]
 
   function navItem(
     label: string,
@@ -46,7 +45,9 @@ export function Navbar() {
         className={cn(
           'flex items-center px-3 py-2 text-sm font-medium transition-colors',
           'hover:text-white',
-          active ? 'text-white border-b-2 border-white' : 'text-white/70'
+          active
+            ? 'text-white border-b-2 border-[var(--gr-accent-bright)]'
+            : 'text-white/70 border-b-2 border-transparent'
         )}
       >
         {label}
@@ -61,21 +62,21 @@ export function Navbar() {
     (loggedIn && !layout.ldap)
 
   return (
-    <nav className="bg-[#3c3f42] text-white">
+    <nav className="bg-[var(--gr-nav)] text-white shadow-sm">
       <div className="mx-auto max-w-7xl px-4">
-        <div className="flex h-11 items-center justify-between">
-          {/* Brand */}
+        <div className="flex h-12 items-center justify-between">
           <Link
             to="/modern/"
-            className="text-lg font-semibold text-white mr-5 no-underline"
+            className="mr-5 text-lg font-semibold tracking-tight text-white no-underline"
           >
             Glowroot
+            <span className="ml-2 text-[10px] font-medium uppercase tracking-wider text-[var(--gr-accent-bright)]">
+              modern
+            </span>
           </Link>
 
-          {/* Agent selector (central mode only) */}
           {layout.central && <AgentSelector />}
 
-          {/* Desktop nav */}
           <div className="hidden md:flex flex-1 items-center gap-0.5">
             {navItem('Transactions', 'transaction', 'transaction/average', layout.showNavbarTransaction)}
             {navItem('Errors', 'error', 'error/messages', layout.showNavbarError)}
@@ -85,12 +86,10 @@ export function Navbar() {
             {navItem('Reporting', 'report', 'report/ad-hoc', layout.showNavbarReport)}
           </div>
 
-          {/* Right side */}
-          <div className="hidden md:flex items-center gap-1">
-            {/* Classic UI link */}
+          <div className="hidden md:flex items-center gap-2">
             <a
               href={classicPath(location.pathname + location.search)}
-              className="px-2 py-1 text-xs text-white/50 hover:text-white/80 transition-colors"
+              className="rounded border border-white/20 px-2.5 py-1 text-xs text-white/80 hover:border-white/40 hover:text-white transition-colors"
               target="_self"
             >
               Classic UI
@@ -104,11 +103,11 @@ export function Navbar() {
                 >
                   <Settings className="h-5 w-5" />
                 </button>
-                <div className="absolute right-0 top-full z-50 hidden group-hover:block w-48 bg-white text-gray-800 rounded shadow-lg border py-1">
+                <div className="absolute right-0 top-full z-50 hidden group-hover:block w-48 rounded-md border border-[var(--gr-border)] bg-white py-1 text-gray-800 shadow-lg">
                   {layout.showNavbarConfig && (
                     <Link
                       to={'/modern/config/general' + qs}
-                      className="block px-4 py-1.5 text-sm hover:bg-gray-100 no-underline text-gray-800"
+                      className="block px-4 py-1.5 text-sm text-gray-800 no-underline hover:bg-gray-50"
                     >
                       Configuration
                     </Link>
@@ -116,7 +115,7 @@ export function Navbar() {
                   {layout.adminView && (
                     <Link
                       to="/modern/admin/general"
-                      className="block px-4 py-1.5 text-sm hover:bg-gray-100 no-underline text-gray-800"
+                      className="block px-4 py-1.5 text-sm text-gray-800 no-underline hover:bg-gray-50"
                     >
                       Administration
                     </Link>
@@ -124,7 +123,7 @@ export function Navbar() {
                   {!loggedIn && loginEnabled && (
                     <Link
                       to="/modern/login"
-                      className="block px-4 py-1.5 text-sm hover:bg-gray-100 no-underline text-gray-800"
+                      className="block px-4 py-1.5 text-sm text-gray-800 no-underline hover:bg-gray-50"
                     >
                       Login
                     </Link>
@@ -132,7 +131,7 @@ export function Navbar() {
                   {loggedIn && !layout.ldap && (
                     <Link
                       to="/modern/profile/change-password"
-                      className="block px-4 py-1.5 text-sm hover:bg-gray-100 no-underline text-gray-800"
+                      className="block px-4 py-1.5 text-sm text-gray-800 no-underline hover:bg-gray-50"
                     >
                       Change my password
                     </Link>
@@ -152,7 +151,6 @@ export function Navbar() {
             )}
           </div>
 
-          {/* Mobile toggle */}
           <button
             className="md:hidden p-2 text-white"
             onClick={() => setMobileOpen(!mobileOpen)}
@@ -161,9 +159,8 @@ export function Navbar() {
           </button>
         </div>
 
-        {/* Mobile nav */}
         {mobileOpen && (
-          <div className="md:hidden pb-3 border-t border-white/20">
+          <div className="md:hidden border-t border-white/15 pb-3">
             <div className="flex flex-col pt-2">
               {navItem('Transactions', 'transaction', 'transaction/average', layout.showNavbarTransaction)}
               {navItem('Errors', 'error', 'error/messages', layout.showNavbarError)}
@@ -173,7 +170,7 @@ export function Navbar() {
               {navItem('Reporting', 'report', 'report/ad-hoc', layout.showNavbarReport)}
               <a
                 href={classicPath(location.pathname + location.search)}
-                className="px-3 py-2 text-sm text-white/50 hover:text-white/80"
+                className="px-3 py-2 text-sm text-white/60 hover:text-white"
                 target="_self"
               >
                 Classic UI

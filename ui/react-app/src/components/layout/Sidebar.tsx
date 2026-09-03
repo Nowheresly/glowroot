@@ -26,7 +26,10 @@ export function Sidebar({ groups }: SidebarProps) {
   return (
     <div className="w-52 shrink-0">
       {groups.map((group, gi) => (
-        <div key={gi} className="mb-4 rounded-md border bg-white">
+        <div
+          key={gi}
+          className="mb-4 overflow-hidden rounded-lg border border-[var(--gr-border)] bg-[var(--gr-surface)]"
+        >
           <div className="flex flex-col">
             {group.items
               .filter((item) => !item.hidden)
@@ -41,16 +44,15 @@ export function Sidebar({ groups }: SidebarProps) {
                     key={item.href}
                     to={item.href}
                     className={cn(
-                      'flex items-center justify-between px-3 py-2 text-sm no-underline',
-                      'border-b last:border-b-0 transition-colors',
+                      'flex items-center justify-between border-b border-[var(--gr-border)] px-3 py-2 text-sm no-underline last:border-b-0 transition-colors',
                       active
-                        ? 'bg-blue-50 text-blue-700 font-medium'
-                        : 'text-gray-700 hover:bg-gray-50'
+                        ? 'border-l-[3px] border-l-[var(--gr-accent)] bg-emerald-50/80 pl-[9px] font-medium text-[var(--gr-accent)]'
+                        : 'border-l-[3px] border-l-transparent text-gray-700 hover:bg-gray-50'
                     )}
                   >
                     <span className="break-all">{item.label}</span>
                     {item.rightText && (
-                      <span className="ml-3 whitespace-nowrap text-xs text-gray-500">
+                      <span className="ml-3 whitespace-nowrap text-xs text-[var(--gr-muted)]">
                         {item.rightText}
                       </span>
                     )}
