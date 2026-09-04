@@ -84,13 +84,13 @@ export function TransactionThroughputPage() {
     <div className="space-y-4">
       {/* Response time sub-nav */}
       <div className="flex gap-4 text-sm">
-        <Link to={`${basePath}/average${qs}`} className="text-gray-500 hover:text-gray-700">
+        <Link to={`${basePath}/average${qs}`} className="text-[var(--gr-muted)] hover:text-[var(--gr-text)]">
           Average
         </Link>
-        <Link to={`${basePath}/percentiles${qs}`} className="text-gray-500 hover:text-gray-700">
+        <Link to={`${basePath}/percentiles${qs}`} className="text-[var(--gr-muted)] hover:text-[var(--gr-text)]">
           Percentiles
         </Link>
-        <span className="font-medium text-blue-600">Throughput</span>
+        <span className="font-medium text-[var(--gr-accent)]">Throughput</span>
       </div>
 
       {/* Chart */}

@@ -112,11 +112,11 @@ export function TransactionPercentilesPage() {
     <div className="space-y-4">
       {/* Response time sub-nav */}
       <div className="flex gap-4 text-sm items-center">
-        <Link to={`${basePath}/average${qs}`} className="text-gray-500 hover:text-gray-700">
+        <Link to={`${basePath}/average${qs}`} className="text-[var(--gr-muted)] hover:text-[var(--gr-text)]">
           Average
         </Link>
-        <span className="font-medium text-blue-600">Percentiles</span>
-        <Link to={`${basePath}/throughput${qs}`} className="text-gray-500 hover:text-gray-700">
+        <span className="font-medium text-[var(--gr-accent)]">Percentiles</span>
+        <Link to={`${basePath}/throughput${qs}`} className="text-[var(--gr-muted)] hover:text-[var(--gr-text)]">
           Throughput
         </Link>
         <span className="text-gray-300">|</span>

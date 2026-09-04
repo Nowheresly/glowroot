@@ -250,11 +250,11 @@ export function TransactionAveragePage() {
     <div className="space-y-4">
       {/* Response time sub-nav */}
       <div className="flex gap-4 text-sm">
-        <span className="font-medium text-blue-600">Average</span>
-        <Link to={`${basePath}/percentiles${qs}`} className="text-gray-500 hover:text-gray-700">
+        <span className="font-medium text-[var(--gr-accent)]">Average</span>
+        <Link to={`${basePath}/percentiles${qs}`} className="text-[var(--gr-muted)] hover:text-[var(--gr-text)]">
           Percentiles
         </Link>
-        <Link to={`${basePath}/throughput${qs}`} className="text-gray-500 hover:text-gray-700">
+        <Link to={`${basePath}/throughput${qs}`} className="text-[var(--gr-muted)] hover:text-[var(--gr-text)]">
           Throughput
         </Link>
       </div>
@@ -287,13 +287,13 @@ export function TransactionAveragePage() {
           {/* View toggle */}
           <div className="flex gap-4 text-sm">
             <button
-              className={timerView === 'tree' ? 'font-medium text-blue-600' : 'text-gray-500 hover:text-gray-700'}
+              className={timerView === 'tree' ? 'font-medium text-[var(--gr-accent)]' : 'text-[var(--gr-muted)] hover:text-[var(--gr-text)]'}
               onClick={() => setTimerView('tree')}
             >
               Tree
             </button>
             <button
-              className={timerView === 'flat' ? 'font-medium text-blue-600' : 'text-gray-500 hover:text-gray-700'}
+              className={timerView === 'flat' ? 'font-medium text-[var(--gr-accent)]' : 'text-[var(--gr-muted)] hover:text-[var(--gr-text)]'}
               onClick={() => setTimerView('flat')}
             >
               Flat

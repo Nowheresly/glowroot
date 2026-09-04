@@ -56,7 +56,7 @@ export function ChartRangeSelector({
     <div className="space-y-2">
       {/* Range display + controls */}
       <div className="flex items-center gap-2 flex-wrap">
-        <span className="text-sm font-medium text-gray-700">{display}</span>
+        <span className="text-sm font-medium text-[var(--gr-text)]">{display}</span>
         <Button variant="outline" size="sm" onClick={actions.zoomOut}>
           Zoom out
         </Button>
@@ -88,9 +88,9 @@ export function ChartRangeSelector({
 
       {/* Custom date range modal */}
       {showCustom && (
-        <div className="flex items-end gap-2 rounded-md border bg-gray-50 p-3">
+        <div className="flex items-end gap-2 rounded-md border border-[var(--gr-border)] bg-[var(--gr-surface-2)] p-3">
           <div>
-            <label className="block text-xs text-gray-600 mb-1">From</label>
+            <label className="mb-1 block text-xs text-[var(--gr-muted)]">From</label>
             <Input
               type="datetime-local"
               value={customFrom}
@@ -99,7 +99,7 @@ export function ChartRangeSelector({
             />
           </div>
           <div>
-            <label className="block text-xs text-gray-600 mb-1">To</label>
+            <label className="mb-1 block text-xs text-[var(--gr-muted)]">To</label>
             <Input
               type="datetime-local"
               value={customTo}
