@@ -64,10 +64,11 @@ export function AgentSelector() {
 
   return (
     <select
-      className="h-7 rounded border border-white/30 bg-white/10 px-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-white/50"
+      className="h-8 min-w-[10rem] rounded-md border border-[var(--gr-border)] bg-[var(--gr-surface)] px-2 text-sm text-[var(--gr-text)] focus:outline-none focus:ring-1 focus:ring-[var(--gr-accent)]"
       value={selectedId}
       onChange={(e) => handleChange(e.target.value)}
       disabled={loading}
+      aria-label="Select agent"
     >
       {!selectedId && (
         <option value="" disabled>
@@ -75,12 +76,12 @@ export function AgentSelector() {
         </option>
       )}
       {agents.map((agent) => (
-        <option key={agent.id} value={agent.id} disabled={agent.disabled} className="text-gray-900">
+        <option key={agent.id} value={agent.id} disabled={agent.disabled}>
           {agent.display}
         </option>
       ))}
       {agents.length === 0 && !loading && (
-        <option value="" disabled className="text-gray-900">
+        <option value="" disabled>
           No active agents in the past 7 days
         </option>
       )}
