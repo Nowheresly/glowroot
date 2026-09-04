@@ -5,8 +5,7 @@
  * tab bar, and child page outlet.
  */
 
-import { Link, Outlet, useLocation, useSearchParams } from 'react-router-dom'
-import { cn } from '../../lib/utils'
+import { Outlet, useLocation, useSearchParams } from 'react-router-dom'
 import {
   useTransaction,
   TRANSACTION_SORT_ORDERS,
@@ -14,7 +13,10 @@ import {
 } from '../../contexts/TransactionContext'
 import { useAgent } from '../../contexts/AgentContext'
 import { useLayout } from '../../contexts/LayoutContext'
-import { ChartRangeSelector } from '../../components/chart/ChartRangeSelector'
+import { useRegisterRangeSlot } from '../../contexts/RangeSlotContext'
+import { PageHeader } from '../../components/layout/PageHeader'
+import { SideList, type SideListItem } from '../../components/layout/SideList'
+import { SectionTabs, type SectionTab } from '../../components/layout/SectionTabs'
 
 export function TransactionLayout() {
   const { layout } = useLayout()
@@ -22,6 +24,8 @@ export function TransactionLayout() {
   const txn = useTransaction()
   const location = useLocation()
   const [searchParams, setSearchParams] = useSearchParams()
+
+  useRegisterRangeSlot(txn.range, txn.rangeActions)
 
   const needsAgent = layout.central && !agentRollupId
 
@@ -46,26 +50,61 @@ export function TransactionLayout() {
     return qs ? '?' + qs : ''
   }
 
-  // Current tab path segment
   const basePath = `/modern/${txn.shortName}`
   const pathAfterBase = location.pathname.replace(basePath + '/', '')
 
+  const summaryItems: SideListItem[] = []
+  if (txn.transactionSummaries.length > 0 || txn.overallSummary) {
+    summaryItems.push({
+      label: `All ${txn.transactionType}`,
+      href: `${location.pathname}${sidebarQs(null)}`,
+      active: !txn.transactionName,
+      rightText: txn.overallSummary
+        ? txn.summaryValueFn(txn.overallSummary)
+        : undefined,
+    })
+    for (const s of txn.transactionSummaries) {
+      summaryItems.push({
+        label: s.transactionName,
+        href: `${location.pathname}${sidebarQs(s.transactionName)}`,
+        active: txn.transactionName === s.transactionName,
+        rightText: txn.summaryValueFn(s),
+      })
+    }
+  }
+
+  const tabs: SectionTab[] = isTransaction
+    ? buildTransactionTabs(
+        basePath,
+        txn.buildTabQueryString(),
+        pathAfterBase,
+        agentRollup?.permissions?.transaction,
+        txn.traceCount,
+        txn.transactionType
+      )
+    : buildErrorTabs(
+        basePath,
+        txn.buildTabQueryString(),
+        pathAfterBase,
+        agentRollup?.permissions?.error
+      )
+
+  const title = displayName ? (
+    <>
+      {displayName}
+      <span className="mx-2 text-[var(--gr-muted)]">|</span>
+      {txn.headerDisplay}
+    </>
+  ) : (
+    txn.headerDisplay
+  )
+
   return (
     <div>
-      {/* Header */}
-      <div className="mb-4 flex items-center gap-3">
-        {displayName && (
-          <>
-            <span className="text-xl font-semibold text-gray-900">{displayName}</span>
-            <span className="text-gray-400">|</span>
-          </>
-        )}
-        <h1 className="text-xl font-semibold text-gray-900">{txn.headerDisplay}</h1>
-
-        {/* Transaction type dropdown */}
+      <PageHeader title={title}>
         {showTypeDropdown && (
           <select
-            className="rounded border px-2 py-1 text-sm"
+            className="rounded border border-[var(--gr-border)] bg-[var(--gr-surface)] px-2 py-1 text-sm text-[var(--gr-text)]"
             value={txn.transactionType}
             onChange={(e) => {
               setSearchParams((prev) => {
@@ -83,125 +122,60 @@ export function TransactionLayout() {
             ))}
           </select>
         )}
-      </div>
+      </PageHeader>
 
       {needsAgent ? (
-        <p className="text-sm text-gray-500">Please select an agent from the dropdown above.</p>
+        <p className="text-sm text-[var(--gr-muted)]">
+          Please select an agent from the dropdown above.
+        </p>
       ) : !txn.transactionType ? (
-        <p className="text-sm text-gray-500">No transaction types available.</p>
+        <p className="text-sm text-[var(--gr-muted)]">No transaction types available.</p>
       ) : (
         <div className="flex gap-6">
-          {/* Sidebar */}
-          <div className="w-52 shrink-0 print:hidden">
-            {/* Sort order dropdown */}
-            <div className="mb-1 rounded-md border bg-white">
-              <select
-                className="w-full rounded-md px-3 py-2 text-sm border-0 bg-transparent"
-                value={txn.summarySortOrder}
-                onChange={(e) => txn.setSummarySortOrder(e.target.value)}
-              >
-                {Object.entries(sortOrders).map(([value, display]) => (
-                  <option key={value} value={value}>
-                    {display}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* Summaries list */}
-            <div className="rounded-md border bg-white">
-              <div className="flex flex-col">
-                {txn.summaryLoading && txn.transactionSummaries.length === 0 ? (
-                  <div className="flex items-center justify-center h-24 text-sm text-gray-400">
-                    Loading...
-                  </div>
-                ) : txn.transactionSummaries.length === 0 ? (
-                  <div className="flex items-center justify-center h-24 text-sm text-gray-500 font-medium">
-                    No data for this time period
-                  </div>
-                ) : (
-                  <>
-                    {/* Overall */}
-                    <Link
-                      to={`${location.pathname}${sidebarQs(null)}`}
-                      className={cn(
-                        'flex items-center justify-between px-3 py-2 text-sm no-underline border-b',
-                        !txn.transactionName
-                          ? 'bg-blue-50 text-blue-700 font-medium'
-                          : 'text-gray-700 hover:bg-gray-50'
-                      )}
-                    >
-                      <span className="break-all">
-                        All {txn.transactionType}
-                      </span>
-                      {txn.overallSummary && (
-                        <span className="ml-2 whitespace-nowrap text-xs text-gray-500">
-                          {txn.summaryValueFn(txn.overallSummary)}
-                        </span>
-                      )}
-                    </Link>
-                    <div className="h-[3px] bg-gray-100" />
-                    {/* Individual transactions */}
-                    {txn.transactionSummaries.map((s) => (
-                      <Link
-                        key={s.transactionName}
-                        to={`${location.pathname}${sidebarQs(s.transactionName)}`}
-                        className={cn(
-                          'flex items-center justify-between px-3 py-2 text-sm no-underline border-b last:border-b-0',
-                          txn.transactionName === s.transactionName
-                            ? 'bg-blue-50 text-blue-700 font-medium'
-                            : 'text-gray-700 hover:bg-gray-50'
-                        )}
-                      >
-                        <span className="break-all">{s.transactionName}</span>
-                        <span className="ml-2 whitespace-nowrap text-xs text-gray-500">
-                          {txn.summaryValueFn(s)}
-                        </span>
-                      </Link>
-                    ))}
-                    {txn.moreSummariesAvailable && (
-                      <button
-                        className="px-3 py-2 text-sm text-gray-500 italic hover:bg-gray-50 w-full text-left"
-                        onClick={txn.showMoreSummaries}
-                      >
-                        Show more
-                      </button>
-                    )}
-                  </>
-                )}
+          <div className="print:hidden">
+            {txn.summaryLoading && summaryItems.length === 0 ? (
+              <div className="flex h-24 w-52 items-center justify-center rounded-lg border border-[var(--gr-border)] bg-[var(--gr-surface)] text-sm text-[var(--gr-muted)]">
+                Loading...
               </div>
-            </div>
+            ) : summaryItems.length === 0 ? (
+              <div className="flex h-24 w-52 items-center justify-center rounded-lg border border-[var(--gr-border)] bg-[var(--gr-surface)] text-sm font-medium text-[var(--gr-muted)]">
+                No data for this time period
+              </div>
+            ) : (
+              <>
+                <SideList
+                  header={
+                    <div className="border-b border-[var(--gr-border)] bg-[var(--gr-surface-2)]">
+                      <select
+                        className="w-full border-0 bg-transparent px-3 py-2 text-sm text-[var(--gr-text)]"
+                        value={txn.summarySortOrder}
+                        onChange={(e) => txn.setSummarySortOrder(e.target.value)}
+                      >
+                        {Object.entries(sortOrders).map(([value, display]) => (
+                          <option key={value} value={value}>
+                            {display}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  }
+                  groups={[{ items: summaryItems }]}
+                />
+                {txn.moreSummariesAvailable && (
+                  <button
+                    type="button"
+                    className="mt-1 w-full rounded-lg border border-[var(--gr-border)] bg-[var(--gr-surface)] px-3 py-2 text-left text-sm italic text-[var(--gr-muted)] hover:bg-[var(--gr-surface-2)]"
+                    onClick={txn.showMoreSummaries}
+                  >
+                    Show more
+                  </button>
+                )}
+              </>
+            )}
           </div>
 
-          {/* Main content area */}
-          <div className="flex-1 min-w-0">
-            {/* Chart range selector */}
-            <ChartRangeSelector range={txn.range} actions={txn.rangeActions} />
-
-            {/* Tab bar */}
-            <div className="mt-4 mb-4">
-              <nav className="flex border-b">
-                {isTransaction ? (
-                  <TransactionTabs
-                    basePath={basePath}
-                    qs={txn.buildTabQueryString()}
-                    active={pathAfterBase}
-                    permissions={agentRollup?.permissions?.transaction}
-                    traceCount={txn.traceCount}
-                    transactionType={txn.transactionType}
-                  />
-                ) : (
-                  <ErrorTabs
-                    basePath={basePath}
-                    qs={txn.buildTabQueryString()}
-                    active={pathAfterBase}
-                    permissions={agentRollup?.permissions?.error}
-                  />
-                )}
-              </nav>
-            </div>
-
-            {/* Page content */}
+          <div className="min-w-0 flex-1">
+            <SectionTabs tabs={tabs} />
             <Outlet />
           </div>
         </div>
@@ -210,21 +184,22 @@ export function TransactionLayout() {
   )
 }
 
-function TransactionTabs({
-  basePath,
-  qs,
-  active,
-  permissions,
-  traceCount,
-  transactionType,
-}: {
-  basePath: string
-  qs: string
-  active: string
-  permissions?: { overview: boolean; traces: boolean; queries: boolean; serviceCalls: boolean; threadProfile: boolean }
-  traceCount?: number
+function buildTransactionTabs(
+  basePath: string,
+  qs: string,
+  active: string,
+  permissions:
+    | {
+        overview: boolean
+        traces: boolean
+        queries: boolean
+        serviceCalls: boolean
+        threadProfile: boolean
+      }
+    | undefined,
+  traceCount: number | undefined,
   transactionType: string
-}) {
+): SectionTab[] {
   const tabs = [
     {
       id: 'time',
@@ -258,40 +233,20 @@ function TransactionTabs({
     },
   ].filter(Boolean) as Array<{ id: string; label: string; paths: string[]; href: string }>
 
-  return (
-    <>
-      {tabs.map((tab) => {
-        const isActive = tab.paths.includes(active)
-        return (
-          <Link
-            key={tab.id}
-            to={tab.href}
-            className={cn(
-              'px-4 py-2 text-sm no-underline border-b-2 -mb-px',
-              isActive
-                ? 'border-blue-600 text-blue-600 font-medium'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-            )}
-          >
-            {tab.label}
-          </Link>
-        )
-      })}
-    </>
-  )
+  return tabs.map((tab) => ({
+    id: tab.id,
+    label: tab.label,
+    href: tab.href,
+    active: tab.paths.includes(active),
+  }))
 }
 
-function ErrorTabs({
-  basePath,
-  qs,
-  active,
-  permissions,
-}: {
-  basePath: string
-  qs: string
-  active: string
-  permissions?: { overview: boolean; traces: boolean }
-}) {
+function buildErrorTabs(
+  basePath: string,
+  qs: string,
+  active: string,
+  permissions: { overview: boolean; traces: boolean } | undefined
+): SectionTab[] {
   const tabs = [
     {
       id: 'messages',
@@ -307,25 +262,10 @@ function ErrorTabs({
     },
   ].filter(Boolean) as Array<{ id: string; label: string; paths: string[]; href: string }>
 
-  return (
-    <>
-      {tabs.map((tab) => {
-        const isActive = tab.paths.includes(active)
-        return (
-          <Link
-            key={tab.id}
-            to={tab.href}
-            className={cn(
-              'px-4 py-2 text-sm no-underline border-b-2 -mb-px',
-              isActive
-                ? 'border-blue-600 text-blue-600 font-medium'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-            )}
-          >
-            {tab.label}
-          </Link>
-        )
-      })}
-    </>
-  )
+  return tabs.map((tab) => ({
+    id: tab.id,
+    label: tab.label,
+    href: tab.href,
+    active: tab.paths.includes(active),
+  }))
 }

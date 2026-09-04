@@ -199,7 +199,7 @@ export function ConfigAlertPage() {
   }
 
   const load = useCallback(async () => {
-    if (!agentRollupId) return
+    if (agentRollupId == null) return
     try {
       if (version) {
         const resp = await apiGet<AlertData>('/backend/config/alerts', {
@@ -380,7 +380,7 @@ export function ConfigAlertPage() {
   const hasChanges = config && originalConfig && JSON.stringify(config) !== JSON.stringify(originalConfig)
 
   async function handleSave() {
-    if (!agentRollupId || !config) return
+    if (agentRollupId == null || !config) return
     const postData: AlertConfig = JSON.parse(JSON.stringify(config))
     // Strip empty notifications
     if (!postData.emailNotification?.emailAddresses.length) delete postData.emailNotification
@@ -405,7 +405,7 @@ export function ConfigAlertPage() {
   }
 
   async function handleDelete() {
-    if (!agentRollupId || !config) return
+    if (agentRollupId == null || !config) return
     await apiPost(
       '/backend/config/alerts/remove?agent-rollup-id=' + encodeURIComponent(agentRollupId),
       { version: config.version }

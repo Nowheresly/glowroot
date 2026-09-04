@@ -54,7 +54,7 @@ export function TransactionFlameGraphPage() {
   const [error, setError] = useState<unknown>(null)
 
   useEffect(() => {
-    if (!agentRollupId || !txn.transactionType) return
+    if (agentRollupId == null || !txn.transactionType) return
     setLoading(true)
     setError(null)
     setNoData(false)

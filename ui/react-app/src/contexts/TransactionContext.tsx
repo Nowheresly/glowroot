@@ -150,7 +150,7 @@ export function TransactionProvider({ shortName, children }: TransactionProvider
   // --- Fetch summaries ---
   const summaryFetchIdRef = useRef(0)
   useEffect(() => {
-    if (!agentRollupId || !transactionType) return
+    if (agentRollupId == null || !transactionType) return
     const fetchId = ++summaryFetchIdRef.current
     setSummaryLoading(true)
 
@@ -197,7 +197,7 @@ export function TransactionProvider({ shortName, children }: TransactionProvider
       shortName === 'transaction'
         ? agentRollup?.permissions?.transaction?.traces
         : agentRollup?.permissions?.error?.traces
-    if (!perms || !agentRollupId || !transactionType) {
+    if (!perms || agentRollupId == null || !transactionType) {
       setTraceCount(undefined)
       return
     }

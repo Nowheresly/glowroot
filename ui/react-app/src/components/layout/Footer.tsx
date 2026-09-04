@@ -6,7 +6,7 @@ export function Footer() {
   const { agentRollup } = useAgent()
 
   return (
-    <footer className="mt-auto border-t bg-white py-3 text-center text-xs text-gray-500">
+    <footer className="mt-auto border-t border-[var(--gr-border)] bg-[var(--gr-surface)] py-3 text-center text-xs text-[var(--gr-muted)]">
       {layout.central ? (
         <>
           <div>Central collector version {layout.glowrootVersion}</div>

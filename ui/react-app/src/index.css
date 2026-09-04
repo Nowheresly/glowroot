@@ -1,1 +1,48 @@
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap');
 @import "tailwindcss";
+
+:root {
+  --gr-font: 'IBM Plex Sans', ui-sans-serif, sans-serif;
+  --gr-bg: #f0f2f5;
+  --gr-surface: #ffffff;
+  --gr-surface-2: #f9fafb;
+  --gr-border: #e2e5ea;
+  --gr-text: #111827;
+  --gr-muted: #6b7280;
+  --gr-accent: #059669;
+  --gr-accent-bright: #10b981;
+  --gr-accent-muted: #ecfdf5;
+  --gr-danger: #dc2626;
+  --gr-rail: #111827;
+  --gr-rail-fg: #ffffff;
+  --gr-nav: #111827;
+}
+
+html[data-theme="dark"] {
+  --gr-bg: #0f1419;
+  --gr-surface: #161b22;
+  --gr-surface-2: #1a222d;
+  --gr-border: #243041;
+  --gr-text: #f3f4f6;
+  --gr-muted: #9ca3af;
+  --gr-accent: #10b981;
+  --gr-accent-bright: #34d399;
+  --gr-accent-muted: #064e3b;
+  --gr-danger: #f87171;
+  --gr-rail: #080b10;
+  --gr-rail-fg: #e5e7eb;
+  --gr-nav: #080b10;
+}
+
+html,
+body,
+#root {
+  font-family: var(--gr-font);
+  color: var(--gr-text);
+  background-color: var(--gr-bg);
+}
+
+.gr-surface {
+  background-color: var(--gr-surface);
+  border-color: var(--gr-border);
+}

@@ -50,7 +50,7 @@ export function TransactionQueriesPage() {
 
   // Fetch queries
   useEffect(() => {
-    if (!agentRollupId || !txn.transactionType) return
+    if (agentRollupId == null || !txn.transactionType) return
     setLoading(true)
     setError(null)
 

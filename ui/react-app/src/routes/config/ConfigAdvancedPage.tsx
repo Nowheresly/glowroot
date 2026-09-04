@@ -30,7 +30,7 @@ export function ConfigAdvancedPage() {
   const canEdit = agentRollup?.permissions?.config?.edit?.advanced ?? false
 
   const load = useCallback(async () => {
-    if (!agentRollupId) return
+    if (agentRollupId == null) return
     try {
       const resp = await apiGet<AdvancedConfig>('/backend/config/advanced', {
         'agent-rollup-id': agentRollupId,
@@ -51,7 +51,7 @@ export function ConfigAdvancedPage() {
     : false
 
   async function handleSave() {
-    if (!agentRollupId) return
+    if (agentRollupId == null) return
     const resp = await apiPost<AdvancedConfig>(
       '/backend/config/advanced?agent-rollup-id=' + encodeURIComponent(agentRollupId),
       config

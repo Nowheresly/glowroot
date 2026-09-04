@@ -19,7 +19,7 @@ export function ConfigSyntheticMonitorListPage() {
   const canEdit = agentRollup?.permissions?.config?.edit?.syntheticMonitors ?? false
 
   const load = useCallback(async () => {
-    if (!agentRollupId) return
+    if (agentRollupId == null) return
     try {
       const resp = await apiGet<SyntheticMonitorSummary[]>('/backend/config/synthetic-monitors', {
         'agent-rollup-id': agentRollupId,

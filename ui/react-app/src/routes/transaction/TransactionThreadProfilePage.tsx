@@ -77,7 +77,7 @@ export function TransactionThreadProfilePage() {
   const [showAll, setShowAll] = useState(false)
 
   const fetchData = useCallback(() => {
-    if (!agentRollupId || !txn.transactionType) return
+    if (agentRollupId == null || !txn.transactionType) return
     setParsingError('')
     const parseResult = parseIncludesExcludes(filter)
     if (parseResult.error) {

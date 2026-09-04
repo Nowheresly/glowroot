@@ -5,9 +5,10 @@ interface DialogProps {
   open: boolean
   onClose: () => void
   children: ReactNode
+  className?: string
 }
 
-export function Dialog({ open, onClose, children }: DialogProps) {
+export function Dialog({ open, onClose, children, className }: DialogProps) {
   const overlayRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -32,7 +33,8 @@ export function Dialog({ open, onClose, children }: DialogProps) {
       <div
         className={cn(
           'relative mx-4 max-h-[85vh] w-full max-w-lg overflow-auto rounded-lg bg-white p-6 shadow-xl',
-          'animate-in fade-in-0 zoom-in-95'
+          'animate-in fade-in-0 zoom-in-95',
+          className
         )}
       >
         {children}
