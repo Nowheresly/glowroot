@@ -1,5 +1,6 @@
 import { Outlet, useLocation } from 'react-router-dom'
-import { Sidebar, type SidebarGroup } from '../../components/layout/Sidebar'
+import { SideList, type SideListGroup } from '../../components/layout/SideList'
+import { PageHeader } from '../../components/layout/PageHeader'
 import { useLayout } from '../../contexts/LayoutContext'
 
 export function AdminLayout() {
@@ -9,7 +10,7 @@ export function AdminLayout() {
 
   document.title = 'Administration \u00b7 Glowroot'
 
-  const groups: SidebarGroup[] = [
+  const groups: SideListGroup[] = [
     {
       items: [
         { label: 'General', href: '/modern/admin/general' },
@@ -43,22 +44,22 @@ export function AdminLayout() {
     },
   ]
 
+  const title = layout.embeddedAgentRollup?.lastDisplayPart ? (
+    <>
+      {layout.embeddedAgentRollup.lastDisplayPart}
+      <span className="mx-2 text-[var(--gr-muted)]">|</span>
+      Administration
+    </>
+  ) : (
+    'Administration'
+  )
+
   return (
     <div>
-      <div className="mb-4">
-        {layout.embeddedAgentRollup?.lastDisplayPart ? (
-          <h1 className="text-xl font-semibold text-gray-900">
-            {layout.embeddedAgentRollup.lastDisplayPart}
-            <span className="mx-2 text-gray-400">|</span>
-            Administration
-          </h1>
-        ) : (
-          <h1 className="text-xl font-semibold text-gray-900">Administration</h1>
-        )}
-      </div>
+      <PageHeader title={title} />
       <div className="flex gap-6">
-        <Sidebar groups={groups} />
-        <div className="flex-1 min-w-0">
+        <SideList groups={groups} />
+        <div className="min-w-0 flex-1">
           <Outlet />
         </div>
       </div>

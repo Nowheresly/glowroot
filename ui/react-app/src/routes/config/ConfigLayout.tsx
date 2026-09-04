@@ -1,5 +1,6 @@
 import { Outlet, useLocation } from 'react-router-dom'
-import { Sidebar, type SidebarGroup } from '../../components/layout/Sidebar'
+import { SideList, type SideListGroup } from '../../components/layout/SideList'
+import { PageHeader } from '../../components/layout/PageHeader'
 import { useLayout } from '../../contexts/LayoutContext'
 import { useAgent } from '../../contexts/AgentContext'
 
@@ -16,7 +17,7 @@ export function ConfigLayout() {
 
   const qs = agentQueryString()
 
-  const groups: SidebarGroup[] = [
+  const groups: SideListGroup[] = [
     {
       items: [
         {
@@ -85,25 +86,26 @@ export function ConfigLayout() {
   ]
 
   const displayName = agentRollup?.lastDisplayPart || ''
+  const title = displayName ? (
+    <>
+      {displayName}
+      <span className="mx-2 text-[var(--gr-muted)]">|</span>
+      Configuration
+    </>
+  ) : (
+    'Configuration'
+  )
 
   return (
     <div>
-      <div className="mb-4">
-        {displayName ? (
-          <h1 className="text-xl font-semibold text-gray-900">
-            {displayName}
-            <span className="mx-2 text-gray-400">|</span>
-            Configuration
-          </h1>
-        ) : (
-          <h1 className="text-xl font-semibold text-gray-900">Configuration</h1>
-        )}
-      </div>
+      <PageHeader title={title} />
       <div className="flex gap-6">
-        {!needsAgent && <Sidebar groups={groups} />}
-        <div className="flex-1 min-w-0">
+        {!needsAgent && <SideList groups={groups} />}
+        <div className="min-w-0 flex-1">
           {needsAgent ? (
-            <p className="text-sm text-gray-500">Please select an agent from the dropdown above.</p>
+            <p className="text-sm text-[var(--gr-muted)]">
+              Please select an agent from the dropdown above.
+            </p>
           ) : (
             <Outlet />
           )}

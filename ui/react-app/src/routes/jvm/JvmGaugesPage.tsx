@@ -7,9 +7,9 @@
 import { useCallback, useMemo, useState } from 'react'
 import { useAgent } from '../../contexts/AgentContext'
 import { TimeSeriesChart, type PlotSeries } from '../../components/chart'
-import { ChartRangeSelector } from '../../components/chart/ChartRangeSelector'
 import { useChartRange } from '../../hooks/useChartRange'
 import { useChartData } from '../../hooks/useChartData'
+import { useRegisterRangeSlot } from '../../contexts/RangeSlotContext'
 import { Input } from '../../components/ui/input'
 import { PageSpinner } from '../../components/shared/Spinner'
 import { HttpError } from '../../components/shared/HttpError'
@@ -40,6 +40,7 @@ export function JvmGaugesPage() {
     4 * 60 * 60 * 1000, // default 4 hours for gauges
     { useGaugeViewThresholdMultiplier: true }
   )
+  useRegisterRangeSlot(range, rangeActions)
 
   const addToQuery = useCallback(
     (query: Record<string, string | string[] | number | undefined>) => {
@@ -166,8 +167,6 @@ export function JvmGaugesPage() {
 
   return (
     <div className="space-y-4">
-      <ChartRangeSelector range={range} actions={rangeActions} />
-
       {/* Chart */}
       <div className="rounded-lg border bg-white p-4">
         {chartData && chartData.dataSeries.length > 0 ? (

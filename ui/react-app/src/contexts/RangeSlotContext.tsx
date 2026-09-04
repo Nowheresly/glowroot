@@ -3,6 +3,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from 'react'
@@ -44,8 +45,11 @@ export function useRegisterRangeSlot(
   actions: ChartRangeActions
 ): void {
   const { setSlot } = useRangeSlotContext()
+  const actionsRef = useRef(actions)
+  actionsRef.current = actions
+
   useEffect(() => {
-    setSlot({ range, actions })
+    setSlot({ range, actions: actionsRef.current })
     return () => setSlot(null)
-  }, [range, actions, setSlot])
+  }, [range.chartFrom, range.chartTo, range.last, setSlot])
 }
